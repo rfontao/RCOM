@@ -24,6 +24,7 @@ options:
 rcom: ${OBJ_SERVER} ${OBJ_CLIENT}
 	${CC} ${CFLAGS} -o ${NAME_SERVER} ${OBJ_SERVER}
 	${CC} ${CFLAGS} -o ${NAME_CLIENT} ${OBJ_CLIENT}
+	rm *.o
 
 clean:
 	rm -f ${NAME_SERVER} ${OBJ_SERVER} ${NAME_CLIENT} ${OBJ_CLIENT}

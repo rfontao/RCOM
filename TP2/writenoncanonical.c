@@ -24,6 +24,7 @@ volatile int STOP = FALSE;
 
 int fd; 	/*TODO: Change later*/
 int set_tries = 0;
+int alarm_flag = 0;
 int ua_frame[255];
 
 void write_to_port(int fd, char* data, size_t s){
@@ -55,8 +56,16 @@ void read_ua_frame(int fd){
 
 	while (STOP == FALSE){
 		read(fd, &result, 1);
+		if(alarm_flag == 1){
+			printf("AAAAAAAAAAAAAAAAAAAAA\n");
+			flag_count = 0;
+			i = 0;
+			alarm_flag = 0;
+			continue;
+		}
 		ua_frame[i] = result;
 		i++;
+
 		if (result == FLAG){
 			if(flag_count > 0) {
 				STOP = TRUE;
@@ -72,11 +81,11 @@ void read_ua_frame(int fd){
 
 void sigalarm_handler(int sig){
 	if(set_tries < MAX_SET_TRIES){
-		printf("%d\n",set_tries);
-		set_tries++;
 		printf("Alarm timeout\n");
+		set_tries++;
+		alarm_flag = 1;
 		send_set_frame(fd);
-		read_ua_frame(fd);
+		alarm(SET_TIMEOUT);
 	} else {
 		perror("SET max tries reached exiting...\n");
 		exit(2);

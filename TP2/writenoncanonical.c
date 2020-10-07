@@ -8,6 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <signal.h>
 
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS11"
@@ -20,18 +21,42 @@
 #define SENDER_C_SET 	"00000011"
 #define BCC1 			"00000000"
 
+#define MAX_SET_RETRIES 3
+#define SET_TIMEOUT		3
+
 volatile int STOP = FALSE;
 
-void writeToPort(int fd, void* data){
+int fd; 	/*TODO: Change later*/
+
+void write_to_port(int fd, void* data){
 	int sent = write(fd, data, strlen(data) + 1);
 	printf("%d bytes written\n", sent);
 }
 
+void send_set_frame(int fd){
+	char set[41];
+	/* SET asswembly */
+	/* [F,A,C,BCC1,F] */
+	strcpy(set, FLAG);
+	strcat(set, SENDER_A);
+	strcat(set, SENDER_C_SET);
+	strcat(set, BCC1);
+	strcat(set, FLAG);
+
+	write_to_port(fd, set);
+}
+
+void sigalrm_handler(int sig){
+	if(sig == SIGALRM){
+		send_set_frame(fd);
+	}
+}
+
 
 int main(int argc, char **argv){
-	int fd, res;
+	int res;
 	struct termios oldtio, newtio;
-	char buf[255];
+	
 
 	if ((argc < 2) ||
 		((strcmp("/dev/ttyS10", argv[1]) != 0) &&
@@ -80,45 +105,54 @@ int main(int argc, char **argv){
 		exit(-1);
 	}
 
+	//Setting the alarm handler
+	struct sigaction action;
+	action.sa_handler = sigalrm_handler;
+	sigemptyset(&action.sa_mask);
+	action.sa_flags = 0;
+	sigaction(SIGINT,&action,NULL);
+
 	printf("New termios structure set\n");
 
-	/* SET asswembly */
-	/* [F,A,C,BCC1,F] */
-	strcpy(buf, FLAG);
-	strcat(buf, SENDER_A);
-	strcat(buf, SENDER_C_SET);
-	strcat(buf, BCC1);
-	strcat(buf, FLAG);
-
-
+	char buf[255]; 
 
 	// fgets(buf,255,stdin);
 	// //Put \0 on the end of the read string
 	// buf[strlen(buf) - 1] = '\0';
 
 	//Sending the data
-	writeToPort(fd, buf);
+	int current_try = 0;
 
+	send_set_frame(fd);
 
-	char* result = (char*)malloc(sizeof(char));
-	int a = 0;
+	while(current_try < MAX_SET_RETRIES){
+		alarm(SET_TIMEOUT);
 
-	while (STOP == FALSE){
-		res = read(fd, result, 1);
-		if(a == 0)
-			strcpy(buf, result);
-		else
-			strcat(buf, result);
-		a++;
-		if (result[0] == '\0')
-			STOP = TRUE;
+		char* result = (char*)malloc(sizeof(char));
+		int a = 0;
+
+		while (STOP == FALSE){
+			res = read(fd, result, 1);
+			if(a == 0)
+				strcpy(buf, result);
+			else
+				strcat(buf, result);
+			a++;
+			if (result[0] == '\0')
+				STOP = TRUE;
+		}
+
+		if(buf[0] == '0'){
+			printf(":%s:%d\n", buf, a);
+			break;
+		}
+		
+		current_try++;
 	}
-
-	printf(":%s:%d\n", buf, a);
+	
 
 	sleep(1);
-	if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
-	{
+	if (tcsetattr(fd, TCSANOW, &oldtio) == -1){
 		perror("tcsetattr");
 		exit(-1);
 	}

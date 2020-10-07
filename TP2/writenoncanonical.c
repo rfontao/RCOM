@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <signal.h>
+#include "message_macros.h"
 
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS11"
@@ -16,42 +17,71 @@
 #define FALSE 0
 #define TRUE 1
 
-#define FLAG 			"01111110"
-#define SENDER_A 		"00000011"
-#define SENDER_C_SET 	"00000011"
-#define BCC1 			"00000000"
-
-#define MAX_SET_RETRIES 3
+#define MAX_SET_TRIES 	3
 #define SET_TIMEOUT		3
 
 volatile int STOP = FALSE;
 
 int fd; 	/*TODO: Change later*/
+int set_tries = 0;
+int ua_frame[255];
 
-void write_to_port(int fd, void* data){
-	int sent = write(fd, data, strlen(data) + 1);
+void write_to_port(int fd, char* data, size_t s){
+	int sent = write(fd, data, s);
 	printf("%d bytes written\n", sent);
 }
 
 void send_set_frame(int fd){
-	char set[41];
-	/* SET asswembly */
-	/* [F,A,C,BCC1,F] */
-	strcpy(set, FLAG);
-	strcat(set, SENDER_A);
-	strcat(set, SENDER_C_SET);
-	strcat(set, BCC1);
-	strcat(set, FLAG);
+	char set_frame[5];
+	set_frame[0] = FLAG;
+	set_frame[1] = A_SENDER;
+	set_frame[2] = C_SET;
+	set_frame[3] = A_SENDER ^ C_SET;
+	set_frame[4] = FLAG;
 
-	write_to_port(fd, set);
+	write_to_port(fd, set_frame, 5);
 }
 
-void sigalrm_handler(int sig){
-	if(sig == SIGALRM){
+void read_ua_frame(int fd){
+
+	printf("Trying to read UA\n");
+	alarm(SET_TIMEOUT);
+
+	int flag_count = 0;
+	char buf[255];
+
+	char result;
+	int i = 0;
+
+	while (STOP == FALSE){
+		read(fd, &result, 1);
+		ua_frame[i] = result;
+		i++;
+		if (result == FLAG){
+			if(flag_count > 0) {
+				STOP = TRUE;
+				alarm(0);
+			} else {
+				flag_count++;
+			}
+		}
+	}
+
+	printf(":%s:%d\n", buf, i);
+}
+
+void sigalarm_handler(int sig){
+	if(set_tries < MAX_SET_TRIES){
+		printf("%d\n",set_tries);
+		set_tries++;
+		printf("Alarm timeout\n");
 		send_set_frame(fd);
+		read_ua_frame(fd);
+	} else {
+		perror("SET max tries reached exiting...\n");
+		exit(2);
 	}
 }
-
 
 int main(int argc, char **argv){
 	int res;
@@ -104,52 +134,13 @@ int main(int argc, char **argv){
 		perror("tcsetattr");
 		exit(-1);
 	}
-
-	//Setting the alarm handler
-	struct sigaction action;
-	action.sa_handler = sigalrm_handler;
-	sigemptyset(&action.sa_mask);
-	action.sa_flags = 0;
-	sigaction(SIGINT,&action,NULL);
-
 	printf("New termios structure set\n");
-
-	char buf[255]; 
-
-	// fgets(buf,255,stdin);
-	// //Put \0 on the end of the read string
-	// buf[strlen(buf) - 1] = '\0';
-
-	//Sending the data
-	int current_try = 0;
+	
+	(void) signal(SIGALRM, sigalarm_handler);
+	printf("Alarm handler set\n");
 
 	send_set_frame(fd);
-
-	while(current_try < MAX_SET_RETRIES){
-		alarm(SET_TIMEOUT);
-
-		char* result = (char*)malloc(sizeof(char));
-		int a = 0;
-
-		while (STOP == FALSE){
-			res = read(fd, result, 1);
-			if(a == 0)
-				strcpy(buf, result);
-			else
-				strcat(buf, result);
-			a++;
-			if (result[0] == '\0')
-				STOP = TRUE;
-		}
-
-		if(buf[0] == '0'){
-			printf(":%s:%d\n", buf, a);
-			break;
-		}
-		
-		current_try++;
-	}
-	
+	read_ua_frame(fd);
 
 	sleep(1);
 	if (tcsetattr(fd, TCSANOW, &oldtio) == -1){

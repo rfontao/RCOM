@@ -8,6 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include "message_macros.h"
 
 #define BAUDRATE B38400
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
@@ -29,7 +30,7 @@ void readPort(int fd, char* data) {
 		else
 			strcat(data, result);
 		a++;
-		if (result[0] == '\0')
+		if (result[0] == FLAG)
 			STOP = TRUE;
 	}
 	STOP = FALSE;

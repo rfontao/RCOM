@@ -16,6 +16,27 @@
 
 volatile int STOP = FALSE;
 
+void readPort(int fd, char* data) {
+
+	int a = 0;
+	int res = 0;
+	char* result = (char*)malloc(sizeof(char));
+
+	while (STOP == FALSE) {
+		res = read(fd, result, 1);
+		if(a == 0)
+			strcpy(data, result);
+		else
+			strcat(data, result);
+		a++;
+		if (result[0] == '\0')
+			STOP = TRUE;
+	}
+	STOP = FALSE;
+
+	printf("%d bytes received\n", res);
+}
+
 int main(int argc, char **argv){
 	int fd, res;
 	struct termios oldtio, newtio;
@@ -70,25 +91,16 @@ int main(int argc, char **argv){
 
 	printf("New termios structure set\n");
 
-	char* result = (char*)malloc(sizeof(char));
-	int a = 0;
 
-	while (STOP == FALSE){
-		res = read(fd, result, 1);
-		if(a == 0)
-			strcpy(buf, result);
-		else
-			strcat(buf, result);
-		a++;
-		if (result[0] == '\0')
-			STOP = TRUE;
-	}
+	char set[255];
 
-	printf(":%s:%d\n", buf, a);
+	// Receive SET
+	readPort(fd, set);
 
+	printf("SET received: %s:%d\n",set, strlen(set) + 1);
 
-
-	res = write(fd, buf, strlen(buf) + 1);
+	// Send UA
+	res = write(fd, set, strlen(set) + 1);
 	printf("%d bytes written\n", res);
 
 	sleep(1);

@@ -25,7 +25,7 @@ volatile int STOP = FALSE;
 int fd; 	/*TODO: Change later*/
 int set_tries = 0;
 int alarm_flag = 0;
-int ua_frame[255];
+char ua_frame[255];
 
 void write_to_port(int fd, char* data, size_t s){
 	int sent = write(fd, data, s);
@@ -39,6 +39,9 @@ void send_set_frame(int fd){
 	set_frame[2] = C_SET;
 	set_frame[3] = A_SENDER ^ C_SET;
 	set_frame[4] = FLAG;
+
+	write(STDOUT_FILENO, set_frame, 5);
+	printf("\n");
 
 	write_to_port(fd, set_frame, 5);
 }

@@ -1,9 +1,9 @@
-NAME_SERVER = noncanonical
-SRC_SERVER = noncanonical.c
+NAME_SERVER = read
+SRC_SERVER = read.c common.c
 OBJ_SERVER = ${SRC_SERVER:.c=.o}
 
-NAME_CLIENT = writenoncanonical
-SRC_CLIENT = writenoncanonical.c
+NAME_CLIENT = write
+SRC_CLIENT = write.c common.c
 OBJ_CLIENT = ${SRC_CLIENT:.c=.o}
 
 # compiler and linker

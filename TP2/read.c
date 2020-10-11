@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include "message_macros.h"
+#include "common.h"
 
 #define BAUDRATE B38400
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
@@ -16,11 +17,6 @@
 #define TRUE 1
 
 volatile int STOP = FALSE;
-
-void write_to_port(int fd, char* data, size_t s){
-	int sent = write(fd, data, s);
-	printf("%d bytes written\n", sent);
-}
 
 void read_set_frame(int fd, char* frame){
 
@@ -48,17 +44,6 @@ void read_set_frame(int fd, char* frame){
 	}
 
 	printf(":%s:%d\n", buf, i);
-}
-
-void send_ua_frame(int fd){
-	char ua_frame[5];
-	ua_frame[0] = FLAG;
-	ua_frame[1] = A_RECEIVER;
-	ua_frame[2] = C_UA;
-	ua_frame[3] = A_RECEIVER ^ C_UA;
-	ua_frame[4] = FLAG;
-
-	write_to_port(fd, ua_frame, 5);
 }
 
 void readPort(int fd, char* data) {
@@ -145,7 +130,7 @@ int main(int argc, char **argv){
 
 	if(set_frame[0] == FLAG){
 		printf("SET received: %s:%d\n",set_frame, strlen(set_frame) + 1);
-		send_ua_frame(fd);
+		send_frame(fd, UA);
 	}
 
 	sleep(1);

@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include "message_macros.h"
+#include "common.h"
 
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS11"
@@ -25,28 +26,8 @@ volatile int STOP = FALSE;
 int fd; 	/*TODO: Change later*/
 int set_tries = 0;
 int alarm_flag = 0;
-char ua_frame[255];
 
-void write_to_port(int fd, char* data, size_t s){
-	int sent = write(fd, data, s);
-	printf("%d bytes written\n", sent);
-}
-
-void send_set_frame(int fd){
-	char set_frame[5];
-	set_frame[0] = FLAG;
-	set_frame[1] = A_SENDER;
-	set_frame[2] = C_SET;
-	set_frame[3] = A_SENDER ^ C_SET;
-	set_frame[4] = FLAG;
-
-	write(STDOUT_FILENO, set_frame, 5);
-	printf("\n");
-
-	write_to_port(fd, set_frame, 5);
-}
-
-void read_ua_frame(int fd){
+void read_ua_frame(int fd, char* out){
 
 	printf("Trying to read UA\n");
 	alarm(SET_TIMEOUT);
@@ -66,7 +47,7 @@ void read_ua_frame(int fd){
 			alarm_flag = 0;
 			continue;
 		}
-		ua_frame[i] = result;
+		out[i] = result;
 		i++;
 
 		if (result == FLAG){
@@ -87,7 +68,7 @@ void sigalarm_handler(int sig){
 		printf("Alarm timeout\n");
 		set_tries++;
 		alarm_flag = 1;
-		send_set_frame(fd);
+		send_frame(fd, SET);
 		alarm(SET_TIMEOUT);
 	} else {
 		perror("SET max tries reached exiting...\n");
@@ -151,8 +132,10 @@ int main(int argc, char **argv){
 	(void) signal(SIGALRM, sigalarm_handler);
 	printf("Alarm handler set\n");
 
-	send_set_frame(fd);
-	read_ua_frame(fd);
+	char ua_frame[255];
+
+	send_frame(fd, SET);
+	read_ua_frame(fd, ua_frame);
 
 	sleep(1);
 	if (tcsetattr(fd, TCSANOW, &oldtio) == -1){

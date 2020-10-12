@@ -28,10 +28,13 @@ void read_set_frame(int fd, char* frame){
 	char result;
 	int i = 0;
 
+
+
 	while (STOP == FALSE){
 		read(fd, &result, 1);
-		frame[i] = result;
+		buf[i] = result;
 		i++;
+
 
 		if (result == FLAG){
 			if(flag_count > 0) {
@@ -41,9 +44,16 @@ void read_set_frame(int fd, char* frame){
 				flag_count++;
 			}
 		}
+
 	}
 
-	printf(":%s:%d\n", buf, i);
+	buf[i] = '\0';
+	printf("SET received: %s : %d\n", buf, i);
+	printf("length %d\n", strlen(buf));
+
+
+	*frame = *buf;
+
 }
 
 void readPort(int fd, char* data) {
@@ -126,10 +136,9 @@ int main(int argc, char **argv){
 	// Receive SET
 	read_set_frame(fd, set_frame);
 
-	printf("AAA: %c %c\n", set_frame[0], FLAG);
+	//printf("AAA: %x %c\n", set_frame[0], FLAG);
 
 	if(set_frame[0] == FLAG){
-		printf("SET received: %s:%d\n",set_frame, strlen(set_frame) + 1);
 		send_frame(fd, UA);
 	}
 

@@ -47,8 +47,9 @@ void read_ua_frame(int fd, char* out){
 			alarm_flag = 0;
 			continue;
 		}
-		out[i] = result;
+		buf[i] = result;
 		i++;
+		
 
 		if (result == FLAG){
 			if(flag_count > 0) {
@@ -60,7 +61,9 @@ void read_ua_frame(int fd, char* out){
 		}
 	}
 
-	printf(":%s:%d\n", buf, i);
+	*out = *buf;
+
+	printf("UA received : %s : %d bytes\n", buf, i);
 }
 
 void sigalarm_handler(int sig){

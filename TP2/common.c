@@ -21,7 +21,7 @@ void send_frame(int fd, enum frameType type){
         set_frame[4] = FLAG;
 
         write_to_port(fd, set_frame, 5);
-        printf("Sent SET frame\n");
+        printf("Sent SET frame : %s : 5\n", set_frame);
     }
 
     if(type == UA){
@@ -33,6 +33,6 @@ void send_frame(int fd, enum frameType type){
         ua_frame[4] = FLAG;
 
 	    write_to_port(fd, ua_frame, 5);
-        printf("Sent UA frame\n");
+        printf("Sent UA frame : %s : 5\n", ua_frame);
     }
 }

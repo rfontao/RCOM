@@ -12,6 +12,8 @@ typedef enum {
 
 void write_to_port(int fd, char* data, size_t s);
 
+void print_frame(char* frame, size_t s);
+
 void send_frame(int fd, frameType type);
 
 #endif

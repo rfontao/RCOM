@@ -58,7 +58,8 @@ void read_ua_frame(int fd, char* out){
 	*out = *buf;
 	STOP = FALSE;
 
-	printf("UA received : %s : %d bytes\n", buf, st);
+	printf("UA received: ");
+    print_frame(buf, 5);
 }
 
 void read_disc_frame(int fd, char *out){
@@ -90,7 +91,8 @@ void read_disc_frame(int fd, char *out){
     *out = *buf;
 	STOP = FALSE;
 
-    printf("DISC received : %s : %d bytes\n", buf, st);
+    printf("DISC received: ");
+    print_frame(buf, 5);
 }
 
 void sigalarm_set_handler(int sig){

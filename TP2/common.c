@@ -10,6 +10,13 @@ void write_to_port(int fd, char* data, size_t s){
 	printf("%d bytes written\n", sent);
 }
 
+void print_frame(char* frame, size_t s){
+    for(int i = 0; i < s; i++){
+            printf(" %d ",frame[i]);
+        }
+    printf("\n");
+}
+
 void send_frame(int fd, frameType type){
 
     if(type == SET){
@@ -21,7 +28,8 @@ void send_frame(int fd, frameType type){
         set_frame[4] = FLAG;
 
         write_to_port(fd, set_frame, 5);
-        printf("Sent SET frame : %s : 5\n", set_frame);
+        printf("Sent SET frame : ");
+        print_frame(set_frame, 5);
     }
 
     if(type == UA_RECEIVER){
@@ -33,7 +41,8 @@ void send_frame(int fd, frameType type){
         ua_frame[4] = FLAG;
 
 	    write_to_port(fd, ua_frame, 5);
-        printf("Sent UA frame : %s : 5\n", ua_frame);
+        printf("Sent UA frame : ");
+        print_frame(ua_frame, 5);
     }
 
     if (type == UA_SENDER){
@@ -45,7 +54,8 @@ void send_frame(int fd, frameType type){
         ua_frame[4] = FLAG;
 
         write_to_port(fd, ua_frame, 5);
-        printf("Sent UA frame : %s : 5\n", ua_frame);
+        printf("Sent UA frame : ");
+        print_frame(ua_frame, 5);
     }
 
     if(type == DISC_RECEIVER){
@@ -57,7 +67,9 @@ void send_frame(int fd, frameType type){
         disc_frame[4] = FLAG;
 
         write_to_port(fd, disc_frame, 5);
-        printf("Sent DISC frame : %s : 5\n", disc_frame);
+        print_frame(disc_frame, 5);
+        printf("Sent DISC frame : ");
+        print_frame(disc_frame, 5);
     }
 
     if (type == DISC_SENDER){
@@ -69,6 +81,7 @@ void send_frame(int fd, frameType type){
         disc_frame[4] = FLAG;
 
         write_to_port(fd, disc_frame, 5);
-        printf("Sent DISC frame : %s : 5\n", disc_frame);
+        printf("Sent DISC frame : ");
+        print_frame(disc_frame, 5);
     }
 }

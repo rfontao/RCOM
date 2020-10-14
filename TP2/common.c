@@ -84,4 +84,103 @@ void send_frame(int fd, frameType type){
         printf("Sent DISC frame : ");
         print_frame(disc_frame, 5);
     }
+
+    
+}
+
+void send_info_frame(int fd, char* data, size_t size, int resend) {
+
+    char frame[255];
+
+    static int c = 0;
+    c += resend;
+
+    frame[0] = FLAG;
+    frame[1] = A_SENDER;
+
+    if(c % 2 == 0)
+        frame[2] = C_INFO1;
+    else frame[2] = C_INFO2;
+
+    frame[3] = A_SENDER ^ frame[2];
+
+    int i = 0;
+    for(; i < size; ++i) {
+        frame[i + 4] = data[i];
+    }
+
+    frame[i + 4] = calculate_bcc2(data, size);
+    frame[i + 5] = FLAG;
+
+    char stuffed_frame[255];
+
+    int frame_size = stuff_data(frame, i + 6, stuffed_frame);
+
+    c++;
+
+    write_to_port(fd, stuffed_frame, frame_size);
+    printf("Sent INFO frame : %s : %d\n", stuffed_frame, frame_size);
+}
+
+char calculate_bcc2(char* data, size_t size) {
+    char result = data[0];
+
+    for(int i = 1; i < size; ++i) 
+        result ^= data[i];
+
+    return result;
+}
+
+int stuff_data(char* data, size_t size, char* stuffed) {
+    int i = 1, j = 1;
+    stuffed[0] = data[0];
+
+    for(; i < size - 1; ++i) {
+
+        if(data[i] == FLAG) {
+            stuffed[j] = ESC;
+            stuffed[++j] = SEQ_1;
+        } else if(data[i] == ESC) {
+            stuffed[j] = ESC;
+            stuffed[++j] = SEQ_2;
+        } else {
+            stuffed[j] = data[i];
+        }
+        j++;
+    }
+    stuffed[j] = data[size - 1];
+
+    return j+1;
+}
+
+void send_rr(int fd, char c) {
+    char rr[5];
+    rr[0] = FLAG;
+    rr[1] = A_RECEIVER;
+    
+    if(c == C_INFO1)
+        rr[2] = C_RR_1;
+    else if(c == C_INFO2)
+        rr[2] = C_RR_2;
+
+    rr[3] = A_RECEIVER ^ rr[2];
+    rr[4] = FLAG;
+
+    write_to_port(fd, rr, 5);
+}
+
+void send_rej(int fd, char c) {
+    char rr[5];
+    rr[0] = FLAG;
+    rr[1] = A_RECEIVER;
+    
+    if(c == C_INFO1)
+        rr[2] = C_REJ_1;
+    else if(c == C_INFO2)
+        rr[2] = C_REJ_2;
+
+    rr[3] = A_RECEIVER ^ rr[2];
+    rr[4] = FLAG;
+
+    write_to_port(fd, rr, 5);
 }

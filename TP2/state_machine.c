@@ -7,6 +7,7 @@
 
 STATE receiver_state = START;
 STATE sender_state = START;
+STATE_INFO info_state = START;
 
 
 STATE set_machine(char input){
@@ -290,6 +291,66 @@ STATE disc_receiver_machine(char input){
     }
 
     receiver_state = st;
+
+    return st;
+}
+
+STATE_INFO info_machine(char input){
+    
+    STATE_INFO st = info_state;
+    // printf("STATE: %d\n", st);
+
+    static char c = C_INFO1;
+
+    if(st == STOP_ST_I){
+        st = START_I;
+    }
+
+    switch (st){
+        case START_I:
+            if(input == FLAG)
+                st = FLAG_RCV;
+            break;
+        case FLAG_RCV:
+            if(input == A_SENDER)
+                st = A_RCV;
+            else if(input != FLAG)
+                st = START;
+            break;
+
+        case A_RCV_I:
+            if(input == C_INFO1 || input == C_INFO2) {
+                st = C_RCV;
+                c = input;
+            }
+            else if(input == FLAG)
+                st = FLAG_RCV;
+            else
+                st = START;
+            break;
+
+        case C_RCV_I:
+            if(input == (A_SENDER ^ c))
+                st = INFO;
+            else if(input == FLAG)
+                st = FLAG_RCV;
+            else
+                st = START;
+            break;
+        
+        case INFO:
+            if(input == FLAG)
+                st = STOP_ST;
+            break;
+
+        case STOP_ST_I:
+            break;
+
+        default:
+            break;
+    }
+
+    info_state = st;
 
     return st;
 }

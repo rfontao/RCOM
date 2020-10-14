@@ -27,6 +27,57 @@ int fd;
 int disc_tries = 0;
 int alarm_flag = 0;
 
+void read_info(int fd, char *data) {
+	char buf[255];
+	char result;	
+	STATE_INFO st;
+	int stuffed = 0;
+	int i = 0;
+	char c;
+
+	while(STOP == FALSE) {
+		read(fd, &result, 1);
+		if(result == ESC) {
+			stuffed = 1;
+			continue;
+		}
+		if(stuffed) {
+			if(result == SEQ_1)
+				buf[i] = FLAG;
+			else if(result == SEQ_2)
+				buf[i] = ESC;
+			else {
+				send_rej(fd, c);
+				printf("REJ\n");
+			}
+			stuffed = 0;
+		} else {
+			buf[i] = result;
+		}
+		i++;
+		if((st = info_machine(result)) == STOP_ST_I) {
+			STOP = TRUE;
+		} else if(st == C_RCV_I) {
+			c = result;
+		}
+	}
+	STOP = FALSE;
+
+	int j = 5;
+	char bcc2_check = buf[j-1];
+
+	for(; j < i - 2; ++j) 
+        bcc2_check ^= buf[j];
+
+	if(buf[i - 2] != bcc2_check) {
+		printf("REJ : wrong bcc2\n");
+		send_rej(fd, c);
+	} 
+	else {
+		send_rr(fd, c);
+	}
+}
+
 void read_ua_frame(int fd, char *out){
 
     printf("Trying to read UA\n");

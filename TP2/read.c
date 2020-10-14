@@ -139,7 +139,7 @@ int main(int argc, char **argv){
 	//printf("AAA: %x %c\n", set_frame[0], FLAG);
 
 	if(set_frame[0] == FLAG){
-		send_frame(fd, UA);
+		send_frame(fd, UA_RECEIVER);
 	}
 
 	sleep(1);

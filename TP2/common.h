@@ -2,9 +2,11 @@
 #define _COMMON_H
 
 enum frameType {
-    UA,
+    UA_SENDER,
+    UA_RECEIVER,
     SET,
-    DISC,
+    DISC_SENDER,
+    DISC_RECEIVER,
     RR
 };
 

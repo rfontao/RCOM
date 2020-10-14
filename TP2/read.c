@@ -8,6 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <signal.h>
 #include "message_macros.h"
 #include "common.h"
 
@@ -17,6 +18,51 @@
 #define TRUE 1
 
 volatile int STOP = FALSE;
+
+#define MAX_FRAME_TRIES 3
+#define FRAME_TIMEOUT 3
+
+int fd;
+int disc_tries = 0;
+int alarm_flag = 0;
+
+void read_ua_frame(int fd, char *out){
+
+    printf("Trying to read UA\n");
+    alarm(FRAME_TIMEOUT);
+
+    int flag_count = 0;
+    char buf[255];
+
+    char result;
+    int i = 0;
+
+    while (STOP == FALSE){
+        read(fd, &result, 1);
+        if (alarm_flag == 1){
+            printf("AAAAAAAAAAAAAAAAAAAAA\n");
+            flag_count = 0;
+            i = 0;
+            alarm_flag = 0;
+            continue;
+        }
+        buf[i] = result;
+        i++;
+
+        if (result == FLAG){
+            if (flag_count > 0){
+                STOP = TRUE;
+                alarm(0);
+            } else {
+                flag_count++;
+            }
+        }
+    }
+
+    *out = *buf;
+
+    printf("UA received : %s : %d bytes\n", buf, i);
+}
 
 void read_set_frame(int fd, char* frame){
 
@@ -28,13 +74,10 @@ void read_set_frame(int fd, char* frame){
 	char result;
 	int i = 0;
 
-
-
 	while (STOP == FALSE){
 		read(fd, &result, 1);
 		buf[i] = result;
 		i++;
-
 
 		if (result == FLAG){
 			if(flag_count > 0) {
@@ -44,16 +87,52 @@ void read_set_frame(int fd, char* frame){
 				flag_count++;
 			}
 		}
-
 	}
 
 	buf[i] = '\0';
 	printf("SET received: %s : %d\n", buf, i);
 	printf("length %d\n", strlen(buf));
 
-
 	*frame = *buf;
+}
 
+void read_disc_frame(int fd, char *out)
+{
+
+    printf("Trying to read DISC\n");
+    alarm(FRAME_TIMEOUT);
+
+    int flag_count = 0;
+    char buf[255];
+
+    char result;
+    int i = 0;
+
+    while (STOP == FALSE){
+        read(fd, &result, 1);
+        if (alarm_flag == 1){
+            printf("AAAAAAAAAAAAAAAAAAAAA\n");
+            flag_count = 0;
+            i = 0;
+            alarm_flag = 0;
+            continue;
+        }
+        buf[i] = result;
+        i++;
+
+        if (result == FLAG){
+            if (flag_count > 0){
+                STOP = TRUE;
+                alarm(0);
+            } else {
+                flag_count++;
+            }
+        }
+    }
+
+    *out = *buf;
+
+    printf("DISC received : %s : %d bytes\n", buf, i);
 }
 
 void readPort(int fd, char* data) {
@@ -75,6 +154,19 @@ void readPort(int fd, char* data) {
 	STOP = FALSE;
 
 	printf("%d bytes received\n", res);
+}
+
+void sigalarm_disc_handler(int sig){
+    if (disc_tries < MAX_FRAME_TRIES){
+        printf("Alarm timeout\n");
+        disc_tries++;
+        alarm_flag = 1;
+        send_frame(fd, DISC_SENDER);
+        alarm(FRAME_TIMEOUT);
+    } else {
+        perror("DISC max tries reached exiting...\n");
+        exit(2);
+    }
 }
 
 int main(int argc, char **argv){
@@ -142,7 +234,20 @@ int main(int argc, char **argv){
 		send_frame(fd, UA_RECEIVER);
 	}
 
-	sleep(1);
+    (void)signal(SIGALRM, sigalarm_disc_handler);
+    printf("DISC Alarm handler set\n");
+
+    char disc_frame[255];
+
+    read_disc_frame(fd, disc_frame);
+    send_frame(fd, DISC_RECEIVER);
+
+    char ua_frame[255];
+
+    read_ua_frame(fd, ua_frame);
+    
+
+    sleep(1);
 	tcsetattr(fd, TCSANOW, &oldtio);
 	close(fd);
 	return 0;

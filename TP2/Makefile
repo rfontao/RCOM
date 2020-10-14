@@ -1,9 +1,9 @@
 NAME_SERVER = read
-SRC_SERVER = read.c common.c
+SRC_SERVER = read.c common.c state_machine.c
 OBJ_SERVER = ${SRC_SERVER:.c=.o}
 
 NAME_CLIENT = write
-SRC_CLIENT = write.c common.c
+SRC_CLIENT = write.c common.c state_machine.c
 OBJ_CLIENT = ${SRC_CLIENT:.c=.o}
 
 # compiler and linker

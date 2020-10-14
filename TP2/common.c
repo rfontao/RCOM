@@ -10,7 +10,7 @@ void write_to_port(int fd, char* data, size_t s){
 	printf("%d bytes written\n", sent);
 }
 
-void send_frame(int fd, enum frameType type){
+void send_frame(int fd, frameType type){
 
     if(type == SET){
         char set_frame[5];

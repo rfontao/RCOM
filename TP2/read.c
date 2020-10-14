@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include "message_macros.h"
 #include "common.h"
+#include "state_machine.h"
 
 #define BAUDRATE B38400
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
@@ -35,15 +36,19 @@ void read_set_frame(int fd, char* frame){
 		buf[i] = result;
 		i++;
 
-
-		if (result == FLAG){
-			if(flag_count > 0) {
-				STOP = TRUE;
-				alarm(0);
-			} else {
-				flag_count++;
-			}
+		if(machine(result, SET)) {
+			STOP = TRUE;
+			alarm(0);
 		}
+
+		// if (result == FLAG){
+		// 	if(flag_count > 0) {
+		// 		STOP = TRUE;
+		// 		alarm(0);
+		// 	} else {
+		// 		flag_count++;
+		// 	}
+		// }
 
 	}
 

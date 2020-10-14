@@ -11,6 +11,7 @@
 #include <signal.h>
 #include "message_macros.h"
 #include "common.h"
+#include "state_machine.h"
 
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS11"
@@ -50,15 +51,19 @@ void read_ua_frame(int fd, char* out){
 		buf[i] = result;
 		i++;
 		
-
-		if (result == FLAG){
-			if(flag_count > 0) {
-				STOP = TRUE;
-				alarm(0);
-			} else {
-				flag_count++;
-			}
+		if(machine(result, UA)) {
+			STOP = TRUE;
+			alarm(0);
 		}
+
+		// if (result == FLAG){
+		// 	if(flag_count > 0) {
+		// 		STOP = TRUE;
+		// 		alarm(0);
+		// 	} else {
+		// 		flag_count++;
+		// 	}
+		// }
 	}
 
 	*out = *buf;

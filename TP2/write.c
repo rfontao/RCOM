@@ -34,42 +34,31 @@ void read_ua_frame(int fd, char* out){
 	printf("Trying to read UA\n");
 	alarm(FRAME_TIMEOUT);
 
-	int flag_count = 0;
 	char buf[255];
 
 	char result;
-	int i = 0;
+	STATE st;
 
 	while (STOP == FALSE){
 		read(fd, &result, 1);
 		if(alarm_flag == 1){
 			printf("AAAAAAAAAAAAAAAAAAAAA\n");
-			flag_count = 0;
-			i = 0;
 			alarm_flag = 0;
 			continue;
 		}
-		buf[i] = result;
-		i++;
+		if((st = ua_sender_machine(result)) > 0)
+			buf[st - 1] = result;
 		
-		if(machine(result, UA_SENDER)) {
+		if(st == STOP_ST) {
 			STOP = TRUE;
 			alarm(0);
 		}
-
-		// if (result == FLAG){
-		// 	if(flag_count > 0) {
-		// 		STOP = TRUE;
-		// 		alarm(0);
-		// 	} else {
-		// 		flag_count++;
-		// 	}
-		// }
 	}
 
 	*out = *buf;
+	STOP = FALSE;
 
-	printf("UA received : %s : %d bytes\n", buf, i);
+	printf("UA received : %s : %d bytes\n", buf, st);
 }
 
 void read_disc_frame(int fd, char *out){
@@ -77,37 +66,31 @@ void read_disc_frame(int fd, char *out){
     printf("Trying to read DISC\n");
     alarm(FRAME_TIMEOUT);
 
-    int flag_count = 0;
     char buf[255];
 
     char result;
-    int i = 0;
+	STATE st;
 
     while (STOP == FALSE){
         read(fd, &result, 1);
         if (alarm_flag == 1){
             printf("AAAAAAAAAAAAAAAAAAAAA\n");
-            flag_count = 0;
-            i = 0;
             alarm_flag = 0;
             continue;
         }
-        buf[i] = result;
-        i++;
+		if((st = disc_sender_machine(result)) > 0)
+        	buf[st - 1] = result;
 
-        if (result == FLAG){
-            if (flag_count > 0){
-                STOP = TRUE;
-                alarm(0);
-            }else {
-                flag_count++;
-            }
-        }
+        if(st == STOP_ST) {
+			STOP = TRUE;
+			alarm(0);
+		}
     }
 
     *out = *buf;
+	STOP = FALSE;
 
-    printf("DISC received : %s : %d bytes\n", buf, i);
+    printf("DISC received : %s : %d bytes\n", buf, st);
 }
 
 void sigalarm_set_handler(int sig){
@@ -137,7 +120,6 @@ void sigalarm_disc_handler(int sig){
 }
 
 int main(int argc, char **argv){
-	int res;
 	struct termios oldtio, newtio;
 	
 

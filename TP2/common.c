@@ -88,40 +88,6 @@ void send_frame(int fd, frameType type){
     
 }
 
-void send_info_frame(int fd, char* data, size_t size, int resend) {
-
-    char frame[255];
-
-    static int c = 0;
-    c += resend;
-
-    frame[0] = FLAG;
-    frame[1] = A_SENDER;
-
-    if(c % 2 == 0)
-        frame[2] = C_INFO1;
-    else frame[2] = C_INFO2;
-
-    frame[3] = A_SENDER ^ frame[2];
-
-    int i = 0;
-    for(; i < size; ++i) {
-        frame[i + 4] = data[i];
-    }
-
-    frame[i + 4] = calculate_bcc2(data, size);
-    frame[i + 5] = FLAG;
-
-    char stuffed_frame[255];
-
-    int frame_size = stuff_data(frame, i + 6, stuffed_frame);
-
-    c++;
-
-    write_to_port(fd, stuffed_frame, frame_size);
-    printf("Sent INFO frame : %s : %d\n", stuffed_frame, frame_size);
-}
-
 char calculate_bcc2(char* data, size_t size) {
     char result = data[0];
 

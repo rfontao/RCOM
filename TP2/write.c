@@ -29,6 +29,8 @@ int set_tries = 0;
 int disc_tries = 0;
 int alarm_flag = 0;
 
+char lastSent[255];
+
 void read_ua_frame(int fd, char* out){
 
 	printf("Trying to read UA\n");
@@ -93,6 +95,68 @@ void read_disc_frame(int fd, char *out){
 
     printf("DISC received: ");
     print_frame(buf, 5);
+}
+
+void read_info_response(int fd) {
+	char buf[255];
+	char result;
+	char c;
+	STATE st;
+
+	while(STOP == FALSE) {
+		read(fd, &result, 1);
+		if((st = info_response_machine(result)) == STOP_ST) {
+			STOP = TRUE;
+		} else if(st == C_RCV) 
+			c = result;
+		if(st > 0)
+			buf[st - 1] = result;
+	}
+	STOP = FALSE;
+
+	if(c == C_RR_1 || c == C_RR_2) {
+		printf("RR received: ");
+	} else if(c == C_REJ_1 || c == C_REJ_2) {
+		printf("REJ received: ");
+	}
+	print_frame(buf, 5);
+
+}
+
+void send_info_frame(int fd, char* data, size_t size, int resend) {
+
+    char frame[255];
+
+    static int c = 0;
+    c += resend;
+
+    frame[0] = FLAG;
+    frame[1] = A_SENDER;
+
+    if(c % 2 == 0)
+        frame[2] = C_INFO1;
+    else frame[2] = C_INFO2;
+
+    frame[3] = A_SENDER ^ frame[2];
+
+    int i = 0;
+    for(; i < size; ++i) {
+        frame[i + 4] = data[i];
+    }
+
+    frame[i + 4] = calculate_bcc2(data, size);
+    frame[i + 5] = FLAG;
+
+    char stuffed_frame[255];
+
+    int frame_size = stuff_data(frame, i + 6, stuffed_frame);
+
+    c++;
+
+    write_to_port(fd, stuffed_frame, frame_size);
+    printf("Sent INFO frame : %s : %d\n", stuffed_frame, frame_size);
+
+    read_info_response(fd);
 }
 
 void sigalarm_set_handler(int sig){

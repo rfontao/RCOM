@@ -296,7 +296,7 @@ STATE disc_receiver_machine(char input){
 }
 
 STATE_INFO info_machine(char input){
-    
+
     STATE_INFO st = info_state;
     // printf("STATE: %d\n", st);
 
@@ -351,6 +351,68 @@ STATE_INFO info_machine(char input){
     }
 
     info_state = st;
+
+    return st;
+}
+
+STATE info_response_machine(char input) {
+    
+    STATE st = sender_state;
+    // printf("STATE: %d\n", st);
+
+    static char c;
+
+    if(st == STOP_ST){
+        st = START;
+    }
+
+    switch (st){
+        case START:
+            if(input == FLAG)
+                st = FLAG_RCV;
+            break;
+        case FLAG_RCV:
+            if(input == A_RECEIVER)
+                st = A_RCV;
+            else if(input != FLAG)
+                st = START;
+            break;
+
+        case A_RCV:
+            if(input == C_RR_1 || input == C_RR_2 || input == C_REJ_1 || input == C_REJ_2) {
+                c = input;
+                st = C_RCV;
+            }
+            else if(input == FLAG)
+                st = FLAG_RCV;
+            else
+                st = START;
+            break;
+
+        case C_RCV:
+            if(input == (A_SENDER ^ c))
+                st = BCC_OK;
+            else if(input == FLAG)
+                st = FLAG_RCV;
+            else
+                st = START;
+            break;
+
+        case BCC_OK:
+            if(input == FLAG)
+                st = STOP_ST;
+            else
+                st = START;
+            break;
+
+        case STOP_ST:
+            break;
+
+        default:
+            break;
+    }
+
+    sender_state = st;
 
     return st;
 }

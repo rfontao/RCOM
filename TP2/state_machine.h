@@ -31,6 +31,8 @@ STATE disc_receiver_machine(char input);
 
 STATE_INFO info_machine(char input);
 
+STATE info_response_machine(char input);
+
 
 
 #endif

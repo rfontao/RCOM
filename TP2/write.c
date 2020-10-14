@@ -19,19 +19,20 @@
 #define FALSE 0
 #define TRUE 1
 
-#define MAX_SET_TRIES 	3
-#define SET_TIMEOUT		3
+#define MAX_FRAME_TRIES 	3
+#define FRAME_TIMEOUT		3
 
 volatile int STOP = FALSE;
 
 int fd; 	/*TODO: Change later*/
 int set_tries = 0;
+int disc_tries = 0;
 int alarm_flag = 0;
 
 void read_ua_frame(int fd, char* out){
 
 	printf("Trying to read UA\n");
-	alarm(SET_TIMEOUT);
+	alarm(FRAME_TIMEOUT);
 
 	int flag_count = 0;
 	char buf[255];
@@ -51,7 +52,7 @@ void read_ua_frame(int fd, char* out){
 		buf[i] = result;
 		i++;
 		
-		if(machine(result, UA)) {
+		if(machine(result, UA_SENDER)) {
 			STOP = TRUE;
 			alarm(0);
 		}
@@ -71,17 +72,68 @@ void read_ua_frame(int fd, char* out){
 	printf("UA received : %s : %d bytes\n", buf, i);
 }
 
-void sigalarm_handler(int sig){
-	if(set_tries < MAX_SET_TRIES){
+void read_disc_frame(int fd, char *out){
+
+    printf("Trying to read DISC\n");
+    alarm(FRAME_TIMEOUT);
+
+    int flag_count = 0;
+    char buf[255];
+
+    char result;
+    int i = 0;
+
+    while (STOP == FALSE){
+        read(fd, &result, 1);
+        if (alarm_flag == 1){
+            printf("AAAAAAAAAAAAAAAAAAAAA\n");
+            flag_count = 0;
+            i = 0;
+            alarm_flag = 0;
+            continue;
+        }
+        buf[i] = result;
+        i++;
+
+        if (result == FLAG){
+            if (flag_count > 0){
+                STOP = TRUE;
+                alarm(0);
+            }else {
+                flag_count++;
+            }
+        }
+    }
+
+    *out = *buf;
+
+    printf("DISC received : %s : %d bytes\n", buf, i);
+}
+
+void sigalarm_set_handler(int sig){
+	if(set_tries < MAX_FRAME_TRIES){
 		printf("Alarm timeout\n");
 		set_tries++;
 		alarm_flag = 1;
 		send_frame(fd, SET);
-		alarm(SET_TIMEOUT);
+		alarm(FRAME_TIMEOUT);
 	} else {
 		perror("SET max tries reached exiting...\n");
 		exit(2);
 	}
+}
+
+void sigalarm_disc_handler(int sig){
+    if (disc_tries < MAX_FRAME_TRIES){
+        printf("Alarm timeout\n");
+        disc_tries++;
+        alarm_flag = 1;
+        send_frame(fd, DISC_SENDER);
+        alarm(FRAME_TIMEOUT);
+    } else {
+        perror("DISC max tries reached exiting...\n");
+        exit(2);
+    }
 }
 
 int main(int argc, char **argv){
@@ -137,15 +189,24 @@ int main(int argc, char **argv){
 	}
 	printf("New termios structure set\n");
 	
-	(void) signal(SIGALRM, sigalarm_handler);
-	printf("Alarm handler set\n");
+	(void) signal(SIGALRM, sigalarm_set_handler);
+	printf("SET Alarm handler set\n");
 
 	char ua_frame[255];
 
 	send_frame(fd, SET);
 	read_ua_frame(fd, ua_frame);
 
-	sleep(1);
+    (void)signal(SIGALRM, sigalarm_disc_handler);
+    printf("DISC Alarm handler set\n");
+
+    char disc_frame[255];
+
+    send_frame(fd, DISC_SENDER);
+    read_disc_frame(fd, disc_frame);
+    send_frame(fd, UA_SENDER);
+
+    sleep(1);
 	if (tcsetattr(fd, TCSANOW, &oldtio) == -1){
 		perror("tcsetattr");
 		exit(-1);

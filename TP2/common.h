@@ -1,10 +1,12 @@
 #ifndef _COMMON_H
 #define _COMMON_H
 
-typedef enum  {
-    UA,
+typedef enum {
+    UA_SENDER,
+    UA_RECEIVER,
     SET,
-    DISC,
+    DISC_SENDER,
+    DISC_RECEIVER,
     RR
 } frameType;
 

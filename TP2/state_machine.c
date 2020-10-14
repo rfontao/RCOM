@@ -11,7 +11,7 @@ bool machine(char input, frameType type) {
     STATE st;
     if(type == SET)
         st = state[RECEPTOR];
-    else if(type == UA)
+    else if(type == UA_SENDER)
         st = state[EMITTER]; 
         
     switch (st)
@@ -28,7 +28,7 @@ bool machine(char input, frameType type) {
                 break;
             }
         }
-        else if(type == UA) {
+        else if(type == UA_SENDER) {
             if(input == A_RECEIVER) {
                 st = A_RCV;
                 break;
@@ -46,7 +46,7 @@ bool machine(char input, frameType type) {
                 break;
             }
 
-        } else if(type == UA) {
+        } else if(type == UA_SENDER) {
 
             if(input == C_UA) {
                 st = C_RCV;
@@ -67,7 +67,7 @@ bool machine(char input, frameType type) {
                 break;
             }
         }
-        else if(type == UA) {
+        else if(type == UA_SENDER) {
             if(input == A_RECEIVER ^ C_UA) {
                 st = BCC_OK;
                 break;
@@ -95,7 +95,7 @@ bool machine(char input, frameType type) {
 
     if(type == SET)
         state[RECEPTOR] = st;
-    else if(type == UA)
+    else if(type == UA_SENDER)
         state[EMITTER] = st; 
 
     if(st == STOP_ST)

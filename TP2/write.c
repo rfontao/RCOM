@@ -28,15 +28,15 @@ int fd; 	/*TODO: Change later*/
 int set_tries = 0;
 int disc_tries = 0;
 int alarm_flag = 0;
+int info_tries = 0;
 
 char lastSent[255];
+size_t last_sent_size = 0;
 
 void read_ua_frame(int fd, char* out){
 
 	printf("Trying to read UA\n");
 	alarm(FRAME_TIMEOUT);
-
-	char buf[255];
 
 	char result;
 	STATE st;
@@ -49,27 +49,23 @@ void read_ua_frame(int fd, char* out){
 			continue;
 		}
 		if((st = ua_sender_machine(result)) > 0)
-			buf[st - 1] = result;
+			out[st - 1] = result;
 		
 		if(st == STOP_ST) {
 			STOP = TRUE;
 			alarm(0);
 		}
 	}
-
-	*out = *buf;
 	STOP = FALSE;
 
 	printf("UA received: ");
-    print_frame(buf, 5);
+    print_frame(out, 5);
 }
 
 void read_disc_frame(int fd, char *out){
 
     printf("Trying to read DISC\n");
     alarm(FRAME_TIMEOUT);
-
-    char buf[255];
 
     char result;
 	STATE st;
@@ -82,53 +78,53 @@ void read_disc_frame(int fd, char *out){
             continue;
         }
 		if((st = disc_sender_machine(result)) > 0)
-        	buf[st - 1] = result;
+        	out[st - 1] = result;
 
         if(st == STOP_ST) {
 			STOP = TRUE;
 			alarm(0);
 		}
     }
-
-    *out = *buf;
 	STOP = FALSE;
 
     printf("DISC received: ");
-    print_frame(buf, 5);
+    print_frame(out, 5);
 }
 
-void read_info_response(int fd) {
-	char buf[255];
+void read_info_response(int fd, char *out) {
 	char result;
-	char c;
 	STATE st;
+
+	printf("Trying to read info response\n");
 
 	while(STOP == FALSE) {
 		read(fd, &result, 1);
+		if (alarm_flag == 1){
+            printf("AAAAAAAAAAAAAAAAAAAAA\n");
+            alarm_flag = 0;
+            continue;
+        }
 		if((st = info_response_machine(result)) == STOP_ST) {
 			STOP = TRUE;
-		} else if(st == C_RCV) 
-			c = result;
+		}
 		if(st > 0)
-			buf[st - 1] = result;
+			out[st - 1] = result;
 	}
 	STOP = FALSE;
 
-	if(c == C_RR_1 || c == C_RR_2) {
-		printf("RR received: ");
-	} else if(c == C_REJ_1 || c == C_REJ_2) {
-		printf("REJ received: ");
-	}
-	print_frame(buf, 5);
-
+	print_frame(out, 5);
 }
 
 void send_info_frame(int fd, char* data, size_t size, int resend) {
 
-    char frame[255];
-
     static int c = 0;
-    c += resend;
+
+	if(resend == TRUE){
+		write_to_port(fd, lastSent, last_sent_size);
+		return;
+	}
+
+    char frame[255];
 
     frame[0] = FLAG;
     frame[1] = A_SENDER;
@@ -153,10 +149,16 @@ void send_info_frame(int fd, char* data, size_t size, int resend) {
 
     c++;
 
+	//TODO : copy to lastframe
+	alarm(FRAME_TIMEOUT);
+
+	for(int k = 0; k < frame_size; k++){
+		lastSent[i] = stuffed_frame[i];
+	}
+	last_sent_size = frame_size;
+
     write_to_port(fd, stuffed_frame, frame_size);
     printf("Sent INFO frame : %s : %d\n", stuffed_frame, frame_size);
-
-    read_info_response(fd);
 }
 
 void sigalarm_set_handler(int sig){
@@ -181,6 +183,19 @@ void sigalarm_disc_handler(int sig){
         alarm(FRAME_TIMEOUT);
     } else {
         perror("DISC max tries reached exiting...\n");
+        exit(2);
+    }
+}
+
+void sigalarm_info_handler(int sig){
+    if (info_tries < MAX_FRAME_TRIES){
+        printf("Alarm timeout\n");
+        info_tries++;
+        alarm_flag = 1;
+        send_info_frame(fd, lastSent, last_sent_size, TRUE);
+        alarm(FRAME_TIMEOUT);
+    } else {
+        perror("INFO max tries reached exiting...\n");
         exit(2);
     }
 }
@@ -245,10 +260,33 @@ int main(int argc, char **argv){
 	send_frame(fd, SET);
 	read_ua_frame(fd, ua_frame);
 
-    (void)signal(SIGALRM, sigalarm_disc_handler);
-    printf("DISC Alarm handler set\n");
+
+	(void)signal(SIGALRM, sigalarm_info_handler);
+    printf("INFO Alarm handler set\n");
+
+
+	char response[255];
+	int resend = FALSE;
+
+	char data[] = "Hello world!";
+
+	while(1){
+		send_info_frame(fd, data, 13, resend);
+		read_info_response(fd, response);
+
+		if(response[2] == C_RR_1 || response[2] == C_RR_2) {
+			printf("RR received: ");
+			resend = FALSE;
+			break; // for now only a string of data
+		} else if(response[2] == C_REJ_1 || response[2] == C_REJ_2) {
+			printf("REJ received: ");
+			resend = TRUE;
+		}
+	}
 
     char disc_frame[255];
+    (void)signal(SIGALRM, sigalarm_disc_handler);
+    printf("DISC Alarm handler set\n");
 
     send_frame(fd, DISC_SENDER);
     read_disc_frame(fd, disc_frame);

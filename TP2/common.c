@@ -132,21 +132,27 @@ void send_rr(int fd, char c) {
     rr[3] = A_RECEIVER ^ rr[2];
     rr[4] = FLAG;
 
+    printf("Sent RR: ");
+    print_frame(rr, 5);
+
     write_to_port(fd, rr, 5);
 }
 
 void send_rej(int fd, char c) {
-    char rr[5];
-    rr[0] = FLAG;
-    rr[1] = A_RECEIVER;
+    char rej[5];
+    rej[0] = FLAG;
+    rej[1] = A_RECEIVER;
     
     if(c == C_INFO1)
-        rr[2] = C_REJ_1;
+        rej[2] = C_REJ_1;
     else if(c == C_INFO2)
-        rr[2] = C_REJ_2;
+        rej[2] = C_REJ_2;
 
-    rr[3] = A_RECEIVER ^ rr[2];
-    rr[4] = FLAG;
+    rej[3] = A_RECEIVER ^ rej[2];
+    rej[4] = FLAG;
 
-    write_to_port(fd, rr, 5);
+    printf("Sent RRJ: ");
+    print_frame(rej, 5);
+
+    write_to_port(fd, rej, 5);
 }

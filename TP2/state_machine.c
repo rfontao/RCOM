@@ -358,7 +358,7 @@ STATE_INFO info_machine(char input){
 STATE info_response_machine(char input) {
     
     STATE st = sender_state;
-    // printf("STATE: %d\n", st);
+
 
     static char c;
 
@@ -390,7 +390,7 @@ STATE info_response_machine(char input) {
             break;
 
         case C_RCV:
-            if(input == (A_SENDER ^ c))
+            if(input == (A_RECEIVER ^ c))
                 st = BCC_OK;
             else if(input == FLAG)
                 st = FLAG_RCV;

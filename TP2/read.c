@@ -70,11 +70,13 @@ void read_info(int fd, char *data) {
         bcc2_check ^= buf[j];
 
 	if(buf[i - 2] != bcc2_check) {
-		printf("REJ : wrong bcc2\n");
 		send_rej(fd, c);
-	} 
-	else {
+	} else {
 		send_rr(fd, c);
+	}
+
+	for(int k = 4; k < i - 2; ++k){
+		data[k - 4] = buf[k];
 	}
 }
 
@@ -135,8 +137,6 @@ void read_disc_frame(int fd, char *out){
     printf("Trying to read DISC\n");
     alarm(FRAME_TIMEOUT);
 
-    char buf[255];
-
     char result;
 	STATE st;
 
@@ -148,19 +148,17 @@ void read_disc_frame(int fd, char *out){
             continue;
         }
 		if((st = disc_receiver_machine(result)) > 0)
-        	buf[st - 1] = result;
+        	out[st - 1] = result;
 
 		if(st == STOP_ST) {
 			STOP = TRUE;
 			alarm(0);
 		}
     }
-
-    *out = *buf;
 	STOP = FALSE;
 
 	printf("DISC received: ");
-    print_frame(buf, 5);
+    print_frame(out, 5);
 }
 
 void sigalarm_disc_handler(int sig){
@@ -232,12 +230,13 @@ int main(int argc, char **argv){
 
 	// Receive SET
 	read_set_frame(fd, set_frame);
-
 	//printf("AAA: %x %c\n", set_frame[0], FLAG);
+	send_frame(fd, UA_RECEIVER);
 
-	if(set_frame[0] == FLAG){
-		send_frame(fd, UA_RECEIVER);
-	}
+
+	char data[255];
+	read_info(fd, data);
+	printf("%s\n", data);
 
     (void)signal(SIGALRM, sigalarm_disc_handler);
     printf("DISC Alarm handler set\n");

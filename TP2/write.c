@@ -30,89 +30,28 @@ int disc_tries = 0;
 int alarm_flag = 0;
 int info_tries = 0;
 
-char lastSent[255];
+char lastSent[1024];
 size_t last_sent_size = 0;
 
-void read_ua_frame(int fd, char* out){
+void read_frame(int fd, char* out){
 
-	printf("Trying to read UA\n");
-	alarm(FRAME_TIMEOUT);
+	printf("Trying to read frame:\n");
+	//alarm(FRAME_TIMEOUT);
 
 	char result;
 	STATE st;
 
 	while (STOP == FALSE){
 		read(fd, &result, 1);
-		if(alarm_flag == 1){
-			printf("AAAAAAAAAAAAAAAAAAAAA\n");
-			alarm_flag = 0;
-			continue;
-		}
-		if((st = ua_sender_machine(result)) > 0)
+		if((st = machine(result, SENDER)) > 0)
 			out[st - 1] = result;
 		
-		if(st == STOP_ST) {
+		if(st == STOP_ST)
 			STOP = TRUE;
-			alarm(0);
-		}
 	}
 	STOP = FALSE;
 
-	printf("UA received: ");
-    print_frame(out, 5);
-}
-
-void read_disc_frame(int fd, char *out){
-
-    printf("Trying to read DISC\n");
-    alarm(FRAME_TIMEOUT);
-
-    char result;
-	STATE st;
-
-    while (STOP == FALSE){
-        read(fd, &result, 1);
-        if (alarm_flag == 1){
-            printf("AAAAAAAAAAAAAAAAAAAAA\n");
-            alarm_flag = 0;
-            continue;
-        }
-		if((st = disc_sender_machine(result)) > 0)
-        	out[st - 1] = result;
-
-        if(st == STOP_ST) {
-			STOP = TRUE;
-			alarm(0);
-		}
-    }
-	STOP = FALSE;
-
-    printf("DISC received: ");
-    print_frame(out, 5);
-}
-
-void read_info_response(int fd, char *out) {
-	char result;
-	STATE st;
-
-	printf("Trying to read info response\n");
-
-	while(STOP == FALSE) {
-		read(fd, &result, 1);
-		if (alarm_flag == 1){
-            printf("AAAAAAAAAAAAAAAAAAAAA\n");
-            alarm_flag = 0;
-            continue;
-        }
-		if((st = info_response_machine(result)) == STOP_ST) {
-			STOP = TRUE;
-		}
-		if(st > 0)
-			out[st - 1] = result;
-	}
-	STOP = FALSE;
-
-	print_frame(out, 5);
+	printf("Received frame: ");
 }
 
 void send_info_frame(int fd, char* data, size_t size, int resend) {
@@ -124,7 +63,7 @@ void send_info_frame(int fd, char* data, size_t size, int resend) {
 		return;
 	}
 
-    char frame[255];
+    char frame[1024];
 
     frame[0] = FLAG;
     frame[1] = A_SENDER;
@@ -143,13 +82,12 @@ void send_info_frame(int fd, char* data, size_t size, int resend) {
     frame[i + 4] = calculate_bcc2(data, size);
     frame[i + 5] = FLAG;
 
-    char stuffed_frame[255];
+    char stuffed_frame[1024];
 
     int frame_size = stuff_data(frame, i + 6, stuffed_frame);
 
     c++;
 
-	//TODO : copy to lastframe
 	alarm(FRAME_TIMEOUT);
 
 	for(int k = 0; k < frame_size; k++){
@@ -252,13 +190,25 @@ int main(int argc, char **argv){
 	}
 	printf("New termios structure set\n");
 	
+	//Takes care of resending SET frames in case of timeout
 	(void) signal(SIGALRM, sigalarm_set_handler);
 	printf("SET Alarm handler set\n");
 
 	char ua_frame[255];
-
+	//First send
 	send_frame(fd, SET);
-	read_ua_frame(fd, ua_frame);
+
+	while(1){
+		read_frame(fd, ua_frame);
+		if(ua_frame[2] == C_UA){
+			printf("Received UA\n");
+			printf("---Connection established---\n");
+			alarm(0);
+			break;
+		} else {
+			printf("Wasn't UA\n");
+		}
+	}
 
 
 	(void)signal(SIGALRM, sigalarm_info_handler);
@@ -272,25 +222,31 @@ int main(int argc, char **argv){
 
 	while(1){
 		send_info_frame(fd, data, 13, resend);
-		read_info_response(fd, response);
+		read_frame(fd, response);
 
 		if(response[2] == C_RR_1 || response[2] == C_RR_2) {
-			printf("RR received: ");
+			printf("RR received\n");
 			resend = FALSE;
+			alarm(0);
 			break; // for now only a string of data
 		} else if(response[2] == C_REJ_1 || response[2] == C_REJ_2) {
-			printf("REJ received: ");
+			printf("REJ received\n");
 			resend = TRUE;
 		}
 	}
+
 
     char disc_frame[255];
     (void)signal(SIGALRM, sigalarm_disc_handler);
     printf("DISC Alarm handler set\n");
 
     send_frame(fd, DISC_SENDER);
-    read_disc_frame(fd, disc_frame);
-    send_frame(fd, UA_SENDER);
+    read_frame(fd, disc_frame);
+	if(disc_frame[2] == C_DISC){
+		alarm(0);
+    	send_frame(fd, UA_SENDER);
+	}
+	
 
     sleep(1);
 	if (tcsetattr(fd, TCSANOW, &oldtio) == -1){

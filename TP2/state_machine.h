@@ -17,6 +17,8 @@ typedef enum {
     SENDER
 } machine_type;
 
-STATE machine(char input, machine_type type);
+STATE machine(unsigned char input, machine_type type);
+
+void reset_state(machine_type type);
 
 #endif

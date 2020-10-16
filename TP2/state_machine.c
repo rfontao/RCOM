@@ -8,7 +8,7 @@
 STATE receiver_state = START;
 STATE sender_state = START;
 
-STATE machine(char input, machine_type type){
+STATE machine(unsigned char input, machine_type type){
 
     STATE st;
 
@@ -18,7 +18,7 @@ STATE machine(char input, machine_type type){
         st = sender_state;
     // printf("STATE: %d\n", st);
 
-    static char c;
+    static unsigned char c;
 
     if(st == STOP_ST || st == STOP_INFO){
         st = START;
@@ -31,8 +31,8 @@ STATE machine(char input, machine_type type){
             break;
 
         case FLAG_RCV:
-            if((type == SENDER && input == A_SENDER) ||
-                (type == RECEIVER && input == A_RECEIVER))
+            if((type == RECEIVER && input == A_SENDER) ||
+                (type == SENDER && input == A_RECEIVER))
                 st = A_RCV;
             else if(input != FLAG)
                 st = START;
@@ -50,8 +50,8 @@ STATE machine(char input, machine_type type){
         case C_RCV:
             if(input == FLAG)
                 st = FLAG_RCV;
-            else if((type == SENDER && input == (A_SENDER ^ c)) ||
-                (type == RECEIVER && input == (A_RECEIVER ^ c)))
+            else if((type == RECEIVER && input == (A_SENDER ^ c)) ||
+                (type == SENDER && input == (A_RECEIVER ^ c)))
                 st = BCC_OK;
             else
                 st = START;
@@ -86,4 +86,11 @@ STATE machine(char input, machine_type type){
         sender_state = st;
 
     return st;
+}
+
+void reset_state(machine_type type){
+    if(type == RECEIVER)
+        receiver_state = START;
+    else 
+        sender_state = START;
 }

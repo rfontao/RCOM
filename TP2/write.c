@@ -30,19 +30,25 @@ int disc_tries = 0;
 int alarm_flag = 0;
 int info_tries = 0;
 
-char lastSent[1024];
+unsigned char lastSent[1024];
 size_t last_sent_size = 0;
 
-void read_frame(int fd, char* out){
+void read_frame(int fd, unsigned char* out){
 
 	printf("Trying to read frame:\n");
 	//alarm(FRAME_TIMEOUT);
 
-	char result;
+	unsigned char result;
 	STATE st;
 
 	while (STOP == FALSE){
 		read(fd, &result, 1);
+		if(alarm_flag == 1){
+			//TODO: Dar reset ao estado?
+			alarm_flag = 0;
+			reset_state(SENDER);
+			continue;
+		}
 		if((st = machine(result, SENDER)) > 0)
 			out[st - 1] = result;
 		
@@ -54,7 +60,7 @@ void read_frame(int fd, char* out){
 	printf("Received frame: ");
 }
 
-void send_info_frame(int fd, char* data, size_t size, int resend) {
+void send_info_frame(int fd, unsigned char* data, size_t size, int resend) {
 
     static int c = 0;
 
@@ -63,7 +69,7 @@ void send_info_frame(int fd, char* data, size_t size, int resend) {
 		return;
 	}
 
-    char frame[1024];
+    unsigned char frame[1024];
 
     frame[0] = FLAG;
     frame[1] = A_SENDER;
@@ -82,7 +88,7 @@ void send_info_frame(int fd, char* data, size_t size, int resend) {
     frame[i + 4] = calculate_bcc2(data, size);
     frame[i + 5] = FLAG;
 
-    char stuffed_frame[1024];
+    unsigned char stuffed_frame[1024];
 
     int frame_size = stuff_data(frame, i + 6, stuffed_frame);
 
@@ -194,7 +200,7 @@ int main(int argc, char **argv){
 	(void) signal(SIGALRM, sigalarm_set_handler);
 	printf("SET Alarm handler set\n");
 
-	char ua_frame[255];
+	unsigned char ua_frame[255];
 	//First send
 	send_frame(fd, SET);
 
@@ -210,43 +216,51 @@ int main(int argc, char **argv){
 		}
 	}
 
-
 	(void)signal(SIGALRM, sigalarm_info_handler);
     printf("INFO Alarm handler set\n");
 
-
-	char response[255];
+	unsigned char response[255];
 	int resend = FALSE;
 
-	char data[] = "Hello world!";
+	unsigned char data[][12] = {"Hello world!", "I'm someone/"};
 
+	int i = 0;
+	int packet_amount = 1;
 	while(1){
-		send_info_frame(fd, data, 13, resend);
+		// printf("%d",i);
+		// write(STDOUT_FILENO, data[i], 12);
+		// printf("\n");
+		send_info_frame(fd, data[i], 12, resend);
 		read_frame(fd, response);
+
+		print_frame(response, 5);
 
 		if(response[2] == C_RR_1 || response[2] == C_RR_2) {
 			printf("RR received\n");
 			resend = FALSE;
 			alarm(0);
-			break; // for now only a string of data
+			if(i == packet_amount){
+				break;
+			}
+			i++;
 		} else if(response[2] == C_REJ_1 || response[2] == C_REJ_2) {
 			printf("REJ received\n");
 			resend = TRUE;
 		}
 	}
 
-
-    char disc_frame[255];
+    unsigned char disc_frame[255];
     (void)signal(SIGALRM, sigalarm_disc_handler);
     printf("DISC Alarm handler set\n");
 
+	alarm(FRAME_TIMEOUT);
     send_frame(fd, DISC_SENDER);
+
     read_frame(fd, disc_frame);
 	if(disc_frame[2] == C_DISC){
 		alarm(0);
     	send_frame(fd, UA_SENDER);
 	}
-	
 
     sleep(1);
 	if (tcsetattr(fd, TCSANOW, &oldtio) == -1){

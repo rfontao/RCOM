@@ -27,16 +27,24 @@ int fd;
 int disc_tries = 0;
 int alarm_flag = 0;
 
-void read_frame(int fd, char *data){
-	char buf[1024];
-	char result;
+size_t read_frame(int fd, unsigned char *data){
+	unsigned char buf[1024];
+	unsigned char result;
 	STATE st;
 	int stuffed = 0;
 	int i = 0;
-	char c;
+	unsigned char c;
+
+	printf("Trying to read frame:\n");
 
 	while(STOP == FALSE) {
 		read(fd, &result, 1);
+
+		if(alarm_flag == 1){
+			alarm_flag = 0;
+			reset_state(RECEIVER);
+			continue;
+		}
 		if(result == ESC) {
 			stuffed = 1;
 			continue;
@@ -68,11 +76,12 @@ void read_frame(int fd, char *data){
 		for(int k = 0; k < 5; ++k){
 			data[k] = buf[k];
 		}
-		return;
+
+		return 0; //TODO: Maybe change for the size of normal frame
 	}
 
 	int j = 5;
-	char bcc2_check = buf[j-1];
+	unsigned char bcc2_check = buf[j-1];
 
 	for(; j < i - 2; ++j) 
         bcc2_check ^= buf[j];
@@ -83,9 +92,12 @@ void read_frame(int fd, char *data){
 		send_rr(fd, c);
 	}
 
-	for(int k = 4; k < i - 2; ++k){
+	int k = 4;
+	for(; k < i - 2; ++k){
 		data[k - 4] = buf[k];
 	}
+
+	return k - 4;
 }
 
 void sigalarm_disc_handler(int sig){
@@ -153,7 +165,7 @@ int main(int argc, char **argv){
 
 	printf("New termios structure set\n");
 
-	char frame[255];
+	unsigned char frame[255];
 	// Receive SET
 	while(1){
 		read_frame(fd, frame);
@@ -164,26 +176,33 @@ int main(int argc, char **argv){
 		}
 	}
 
-	char data[4096];
+	unsigned char data[4096];
+	unsigned char buffer[1024];
+	size_t buffer_count = 0;
 	while(1){
-		read_frame(fd, data);
-		if(frame[2] == C_DISC){
+		size_t read_size = read_frame(fd, buffer);
+		if(buffer[2] == C_DISC){
 			printf("Received DISC frame\n");
 			break;
 		} else {
-			printf("%s\n", data);
-			break;//Only one packet for now
+			for(size_t i = 0; i < read_size; ++i){
+				data[buffer_count + i] = buffer[i];
+			}
+			buffer_count += read_size;
 		}
 	}
+	write(STDOUT_FILENO, data, buffer_count);
+	printf("\n");
 
     (void)signal(SIGALRM, sigalarm_disc_handler);
     printf("DISC Alarm handler set\n");
 
+	alarm(FRAME_TIMEOUT);
     send_frame(fd, DISC_RECEIVER);
 
 
 	//TODO: make send disc receiver frame again if it does not get response
-    char ua_frame[255];
+    unsigned char ua_frame[255];
     read_frame(fd, ua_frame);
 
 	if(ua_frame[2] == C_UA){

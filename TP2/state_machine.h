@@ -6,33 +6,19 @@ typedef enum {
     FLAG_RCV    = 1,
     A_RCV       = 2,
     C_RCV       = 3,
-    BCC_OK      = 4,      
-    STOP_ST     = 5
+    BCC_OK      = 4,
+    STOP_ST     = 5,
+    STOP_INFO   = 6,
+    INFO        = 7      
 } STATE;
 
 typedef enum {
-    START_I,
-    FLAG_RCV_I,
-    A_RCV_I,
-    C_RCV_I,
-    INFO,
-    STOP_ST_I
-} STATE_INFO;
+    RECEIVER,
+    SENDER
+} machine_type;
 
-STATE set_machine(char input);
+STATE machine(unsigned char input, machine_type type);
 
-STATE ua_sender_machine(char input);
-
-STATE ua_receiver_machine(char input);
-
-STATE disc_sender_machine(char input);
-
-STATE disc_receiver_machine(char input);
-
-STATE_INFO info_machine(char input);
-
-STATE info_response_machine(char input);
-
-
+void reset_state(machine_type type);
 
 #endif

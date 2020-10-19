@@ -27,16 +27,24 @@ int fd;
 int disc_tries = 0;
 int alarm_flag = 0;
 
-void read_info(int fd, char *data) {
-	char buf[255];
-	char result;	
-	STATE_INFO st;
+size_t read_frame(int fd, unsigned char *data){
+	unsigned char buf[1024];
+	unsigned char result;
+	STATE st;
 	int stuffed = 0;
 	int i = 0;
-	char c;
+	unsigned char c;
+
+	printf("Trying to read frame:\n");
 
 	while(STOP == FALSE) {
 		read(fd, &result, 1);
+
+		if(alarm_flag == 1){
+			alarm_flag = 0;
+			reset_state(RECEIVER);
+			continue;
+		}
 		if(result == ESC) {
 			stuffed = 1;
 			continue;
@@ -51,20 +59,29 @@ void read_info(int fd, char *data) {
 				printf("REJ\n");
 			}
 			stuffed = 0;
-		} else {
+		} else 
 			buf[i] = result;
-		}
 		i++;
-		if((st = info_machine(result)) == STOP_ST_I) {
+
+		st = machine(result, RECEIVER);
+		if(st == STOP_ST || st == STOP_INFO) {
 			STOP = TRUE;
-		} else if(st == C_RCV_I) {
+		} else if(st == C_RCV) {
 			c = result;
 		}
 	}
 	STOP = FALSE;
 
+	if(st == STOP_ST){
+		for(int k = 0; k < 5; ++k){
+			data[k] = buf[k];
+		}
+
+		return 0; //TODO: Maybe change for the size of normal frame
+	}
+
 	int j = 5;
-	char bcc2_check = buf[j-1];
+	unsigned char bcc2_check = buf[j-1];
 
 	for(; j < i - 2; ++j) 
         bcc2_check ^= buf[j];
@@ -75,90 +92,12 @@ void read_info(int fd, char *data) {
 		send_rr(fd, c);
 	}
 
-	for(int k = 4; k < i - 2; ++k){
+	int k = 4;
+	for(; k < i - 2; ++k){
 		data[k - 4] = buf[k];
 	}
-}
 
-void read_ua_frame(int fd, char *out){
-
-    printf("Trying to read UA\n");
-
-    char buf[255];
-
-    char result;
-	STATE st;
-
-    while (STOP == FALSE){
-		read(fd, &result, 1);
-		if((st = ua_receiver_machine(result)) > 0)
-			buf[st - 1] = result;
-
-		if(st == STOP_ST)
-			STOP = TRUE;
-	}
-
-    *out = *buf;
-	STOP = FALSE;
-
-    printf("UA received: ");
-    print_frame(buf, 5);
-}
-
-void read_set_frame(int fd, char* frame){
-
-	printf("Trying to read SET\n");
-
-	char buf[255];
-
-	char result;
-	STATE st;
-
-	while (STOP == FALSE){
-		read(fd, &result, 1);
-		if((st = set_machine(result)) > 0)
-			buf[st - 1] = result;
-
-		if(st == STOP_ST) {
-			STOP = TRUE;
-			alarm(0);
-		}
-	}
-
-	STOP = FALSE;
-	*frame = *buf;
-
-	printf("SET received: ");
-    print_frame(buf, 5);
-}
-
-void read_disc_frame(int fd, char *out){
-
-    printf("Trying to read DISC\n");
-    alarm(FRAME_TIMEOUT);
-
-    char result;
-	STATE st;
-
-    while (STOP == FALSE){
-        read(fd, &result, 1);
-        if (alarm_flag == 1){
-            printf("AAAAAAAAAAAAAAAAAAAAA\n");
-            alarm_flag = 0;
-            continue;
-        }
-		if((st = disc_receiver_machine(result)) > 0)
-        	out[st - 1] = result;
-
-		if(st == STOP_ST) {
-			STOP = TRUE;
-			alarm(0);
-		}
-    }
-	STOP = FALSE;
-
-	printf("DISC received: ");
-    print_frame(out, 5);
+	return k - 4;
 }
 
 void sigalarm_disc_handler(int sig){
@@ -226,31 +165,51 @@ int main(int argc, char **argv){
 
 	printf("New termios structure set\n");
 
-	char set_frame[255];
-
+	unsigned char frame[255];
 	// Receive SET
-	read_set_frame(fd, set_frame);
-	//printf("AAA: %x %c\n", set_frame[0], FLAG);
-	send_frame(fd, UA_RECEIVER);
+	while(1){
+		read_frame(fd, frame);
+		if(frame[2] == C_SET){
+			printf("Received SET frame\n");
+			send_frame(fd, UA_RECEIVER);
+			break;
+		}
+	}
 
-
-	char data[255];
-	read_info(fd, data);
-	printf("%s\n", data);
+	unsigned char data[4096];
+	unsigned char buffer[1024];
+	size_t buffer_count = 0;
+	while(1){
+		size_t read_size = read_frame(fd, buffer);
+		if(buffer[2] == C_DISC){
+			printf("Received DISC frame\n");
+			break;
+		} else {
+			for(size_t i = 0; i < read_size; ++i){
+				data[buffer_count + i] = buffer[i];
+			}
+			buffer_count += read_size;
+		}
+	}
+	write(STDOUT_FILENO, data, buffer_count);
+	printf("\n");
 
     (void)signal(SIGALRM, sigalarm_disc_handler);
     printf("DISC Alarm handler set\n");
 
-    char disc_frame[255];
-
-    read_disc_frame(fd, disc_frame);
+	alarm(FRAME_TIMEOUT);
     send_frame(fd, DISC_RECEIVER);
 
-    char ua_frame[255];
 
-    read_ua_frame(fd, ua_frame);
+	//TODO: make send disc receiver frame again if it does not get response
+    unsigned char ua_frame[255];
+    read_frame(fd, ua_frame);
+
+	if(ua_frame[2] == C_UA){
+		printf("Received UA\n");
+		alarm(0);
+	}
     
-
     sleep(1);
 	tcsetattr(fd, TCSANOW, &oldtio);
 	close(fd);

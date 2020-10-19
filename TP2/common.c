@@ -5,12 +5,12 @@
 #include "message_macros.h"
 
 
-void write_to_port(int fd, char* data, size_t s){
+void write_to_port(int fd, unsigned char* data, size_t s){
 	int sent = write(fd, data, s);
 	printf("%d bytes written\n", sent);
 }
 
-void print_frame(char* frame, size_t s){
+void print_frame(unsigned char* frame, size_t s){
     for(int i = 0; i < s; i++){
             printf(" %d ",frame[i]);
         }
@@ -20,7 +20,7 @@ void print_frame(char* frame, size_t s){
 void send_frame(int fd, frameType type){
 
     if(type == SET){
-        char set_frame[5];
+        unsigned char set_frame[5];
 	    set_frame[0] = FLAG;
         set_frame[1] = A_SENDER;
         set_frame[2] = C_SET;
@@ -33,7 +33,7 @@ void send_frame(int fd, frameType type){
     }
 
     if(type == UA_RECEIVER){
-        char ua_frame[5];
+        unsigned char ua_frame[5];
         ua_frame[0] = FLAG;
         ua_frame[1] = A_RECEIVER;
         ua_frame[2] = C_UA;
@@ -46,7 +46,7 @@ void send_frame(int fd, frameType type){
     }
 
     if (type == UA_SENDER){
-        char ua_frame[5];
+        unsigned char ua_frame[5];
         ua_frame[0] = FLAG;
         ua_frame[1] = A_SENDER;
         ua_frame[2] = C_UA;
@@ -59,7 +59,7 @@ void send_frame(int fd, frameType type){
     }
 
     if(type == DISC_RECEIVER){
-        char disc_frame[5];
+        unsigned char disc_frame[5];
         disc_frame[0] = FLAG;
         disc_frame[1] = A_RECEIVER;
         disc_frame[2] = C_DISC;
@@ -67,13 +67,12 @@ void send_frame(int fd, frameType type){
         disc_frame[4] = FLAG;
 
         write_to_port(fd, disc_frame, 5);
-        print_frame(disc_frame, 5);
         printf("Sent DISC frame : ");
         print_frame(disc_frame, 5);
     }
 
     if (type == DISC_SENDER){
-        char disc_frame[5];
+        unsigned char disc_frame[5];
         disc_frame[0] = FLAG;
         disc_frame[1] = A_SENDER;
         disc_frame[2] = C_DISC;
@@ -84,12 +83,10 @@ void send_frame(int fd, frameType type){
         printf("Sent DISC frame : ");
         print_frame(disc_frame, 5);
     }
-
-    
 }
 
-char calculate_bcc2(char* data, size_t size) {
-    char result = data[0];
+unsigned char calculate_bcc2(unsigned char* data, size_t size) {
+    unsigned char result = data[0];
 
     for(int i = 1; i < size; ++i) 
         result ^= data[i];
@@ -97,7 +94,7 @@ char calculate_bcc2(char* data, size_t size) {
     return result;
 }
 
-int stuff_data(char* data, size_t size, char* stuffed) {
+int stuff_data(unsigned char* data, size_t size, unsigned char* stuffed) {
     int i = 1, j = 1;
     stuffed[0] = data[0];
 
@@ -119,8 +116,8 @@ int stuff_data(char* data, size_t size, char* stuffed) {
     return j+1;
 }
 
-void send_rr(int fd, char c) {
-    char rr[5];
+void send_rr(int fd, unsigned char c) {
+    unsigned char rr[5];
     rr[0] = FLAG;
     rr[1] = A_RECEIVER;
     
@@ -138,8 +135,8 @@ void send_rr(int fd, char c) {
     write_to_port(fd, rr, 5);
 }
 
-void send_rej(int fd, char c) {
-    char rej[5];
+void send_rej(int fd, unsigned char c) {
+    unsigned char rej[5];
     rej[0] = FLAG;
     rej[1] = A_RECEIVER;
     

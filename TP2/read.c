@@ -100,6 +100,19 @@ size_t read_frame(int fd, unsigned char *data){
 	return k - 4;
 }
 
+int read_set(int fd) {
+	char frame[255];
+
+	while(1){
+		read_frame(fd, frame);
+		if(frame[2] == C_SET){
+			printf("Received SET frame\n");
+			send_frame(fd, UA_RECEIVER);
+			break;
+		}
+	}
+}
+
 void sigalarm_disc_handler(int sig){
     if (disc_tries < MAX_FRAME_TRIES){
         printf("Alarm timeout\n");
@@ -167,14 +180,7 @@ int main(int argc, char **argv){
 
 	unsigned char frame[255];
 	// Receive SET
-	while(1){
-		read_frame(fd, frame);
-		if(frame[2] == C_SET){
-			printf("Received SET frame\n");
-			send_frame(fd, UA_RECEIVER);
-			break;
-		}
-	}
+	read_set(fd);
 
 	unsigned char data[4096];
 	unsigned char buffer[1024];

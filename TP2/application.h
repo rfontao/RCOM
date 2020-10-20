@@ -10,6 +10,16 @@
 #define FALSE 0
 #define TRUE 1
 
+#define START 0
+#define END 1
+
+#define C_DATA  0x01
+#define C_START 0x02
+#define C_END   0x03
+
+#define FILE_SIZE    0
+#define FILE_NAME    1
+
 typedef struct 
 {
     int fileDescriptor;
@@ -28,5 +38,11 @@ int llread(int fd, char* buffer);
 int llclose(int fd);
 
 int close_port();
+
+int assemble_control_packet(int type, char *filename, int fileSize, unsigned char* packet);
+
+int assemble_data_packet(unsigned char* data, int length, unsigned char* packet);
+
+int send_control(int type, char *filename, int fileSize);
 
 #endif

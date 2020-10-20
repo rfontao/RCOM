@@ -14,6 +14,76 @@
 applicationLayer app;
 struct termios oldtio, newtio;
 
+int send_data(unsigned char* data, int length) {
+	unsigned char packet[length + 4];
+
+	int size = assemble_data_packet(data, length, packet);
+
+	if(llwrite(app.fileDescriptor, packet, size) == -1) {
+		printf("Error sending data packet");
+		return -1;
+	}
+
+	return 0;
+}
+
+int send_control(int type, char *filename, int fileSize) {
+	unsigned char packet[strlen(filename) + 9]; //control+type,length,filename+type,lenght,fileSize
+
+	int size = assemble_control_packet(type, filename, fileSize, packet);
+
+	if(llwrite(app.fileDescriptor, packet, size) == -1) {
+		printf("Error sending control packet\n");
+		return -1;
+	}
+	return 0;
+}
+
+int assemble_data_packet(unsigned char* data, int length, unsigned char* packet) {
+
+	static int sequenceN = 0;
+
+	packet[0] = C_DATA;
+	packet[1] = sequenceN % 256;
+ 	packet[2] = length / 256;
+	packet[3] = length % 256;
+
+	int i = 0;
+	for(; i < length; ++i) {
+		packet[i + 4] = data[i]; 
+	}
+
+	sequenceN++;
+
+	return i + 4;
+}
+
+int assemble_control_packet(int type, char *filename, int fileSize, unsigned char* packet) {
+
+	if(type = START) 
+		packet[0] =	C_START;
+	else 
+		packet[0] = C_END;
+
+	packet[1] = FILE_SIZE;
+	packet[2] = sizeof(fileSize);
+
+	packet[3] = (fileSize >> 24) & 0xff;
+	packet[4] = (fileSize >> 16) & 0xff;
+	packet[5] = (fileSize >> 8) & 0xff;
+	packet[6] = fileSize & 0xff;
+
+	packet[7] = FILE_NAME;
+	packet[8] = strlen(filename);
+	
+	int i = 0;
+	for(; i < strlen(filename); ++i) {
+		packet[9 + i] = filename[i];
+	}
+
+	return 9 + i;
+}
+
 int llopen(char* port, int mode) {
     int fd = set_port(port);
 

@@ -41,7 +41,7 @@ int read_frame_reader(int fd, unsigned char *data, frame_type frame_type){
 	while(STOP == FALSE) {
 		read(fd, &result, 1);
 		if(retry_flag == 1){
-			return;
+			return -1;
 		}
 
 		if(result == ESC) {

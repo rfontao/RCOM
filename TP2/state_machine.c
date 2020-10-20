@@ -8,11 +8,11 @@
 STATE receiver_state = START;
 STATE sender_state = START;
 
-STATE machine(unsigned char input, machine_type type){
+STATE machine(unsigned char input, machine_type type, frame_type frame_type){
 
     STATE st;
 
-    if(type == RECEIVER)
+    if(type == RECEIVER_M)
         st = receiver_state;
     else 
         st = sender_state;
@@ -31,11 +31,19 @@ STATE machine(unsigned char input, machine_type type){
             break;
 
         case FLAG_RCV:
-            if((type == RECEIVER && input == A_SENDER) ||
-                (type == SENDER && input == A_RECEIVER))
-                st = A_RCV;
-            else if(input != FLAG)
-                st = START;
+            if(frame_type == COMMAND){
+                if((type == RECEIVER_M && input == A_SENDER) ||
+                    (type == SENDER_M && input == A_RECEIVER))
+                    st = A_RCV;
+                else if(input != FLAG)
+                    st = START;
+            } else {
+                if((type == RECEIVER_M && input == A_RECEIVER) ||
+                    (type == SENDER_M && input == A_SENDER))
+                    st = A_RCV;
+                else if(input != FLAG)
+                    st = START;
+            }
             break;
 
         case A_RCV:
@@ -50,11 +58,20 @@ STATE machine(unsigned char input, machine_type type){
         case C_RCV:
             if(input == FLAG)
                 st = FLAG_RCV;
-            else if((type == RECEIVER && input == (A_SENDER ^ c)) ||
-                (type == SENDER && input == (A_RECEIVER ^ c)))
-                st = BCC_OK;
-            else
-                st = START;
+            else if(frame_type == COMMAND){
+                if((type == RECEIVER_M && input == (A_SENDER ^ c)) ||
+                (type == SENDER_M && input == (A_RECEIVER ^ c)))
+                    st = BCC_OK;
+                else
+                    st = START;    
+            
+            } else if(frame_type == RESPONSE){
+                if((type == RECEIVER_M && input == (A_RECEIVER ^ c)) ||
+                (type == SENDER_M && input == (A_SENDER ^ c)))
+                    st = BCC_OK;
+                else 
+                    st = START;
+            }
             break;
 
         case BCC_OK:
@@ -80,7 +97,7 @@ STATE machine(unsigned char input, machine_type type){
             break;
     }
 
-    if(type == RECEIVER)
+    if(type == RECEIVER_M)
         receiver_state = st;
     else 
         sender_state = st;
@@ -89,7 +106,7 @@ STATE machine(unsigned char input, machine_type type){
 }
 
 void reset_state(machine_type type){
-    if(type == RECEIVER)
+    if(type == RECEIVER_M)
         receiver_state = START;
     else 
         sender_state = START;

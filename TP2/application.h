@@ -27,4 +27,6 @@ int llread(int fd, char* buffer);
 
 int llclose(int fd);
 
+int close_port();
+
 #endif

@@ -13,11 +13,16 @@ typedef enum {
 } STATE;
 
 typedef enum {
-    RECEIVER,
-    SENDER
+    RECEIVER_M,
+    SENDER_M
 } machine_type;
 
-STATE machine(unsigned char input, machine_type type);
+typedef enum {
+    COMMAND,
+    RESPONSE
+} frame_type;
+
+STATE machine(unsigned char input, machine_type type, frame_type frame_type);
 
 void reset_state(machine_type type);
 

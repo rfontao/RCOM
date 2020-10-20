@@ -35,9 +35,9 @@ void send_frame(int fd, frameType type){
     if(type == UA_RECEIVER){
         unsigned char ua_frame[5];
         ua_frame[0] = FLAG;
-        ua_frame[1] = A_RECEIVER;
+        ua_frame[1] = A_SENDER;
         ua_frame[2] = C_UA;
-        ua_frame[3] = A_RECEIVER ^ C_UA;
+        ua_frame[3] = A_SENDER ^ C_UA;
         ua_frame[4] = FLAG;
 
 	    write_to_port(fd, ua_frame, 5);
@@ -48,9 +48,9 @@ void send_frame(int fd, frameType type){
     if (type == UA_SENDER){
         unsigned char ua_frame[5];
         ua_frame[0] = FLAG;
-        ua_frame[1] = A_SENDER;
+        ua_frame[1] = A_RECEIVER;
         ua_frame[2] = C_UA;
-        ua_frame[3] = A_SENDER ^ C_UA;
+        ua_frame[3] = A_RECEIVER ^ C_UA;
         ua_frame[4] = FLAG;
 
         write_to_port(fd, ua_frame, 5);
@@ -119,14 +119,14 @@ int stuff_data(unsigned char* data, size_t size, unsigned char* stuffed) {
 void send_rr(int fd, unsigned char c) {
     unsigned char rr[5];
     rr[0] = FLAG;
-    rr[1] = A_RECEIVER;
+    rr[1] = A_SENDER;
     
     if(c == C_INFO1)
         rr[2] = C_RR_1;
     else if(c == C_INFO2)
         rr[2] = C_RR_2;
 
-    rr[3] = A_RECEIVER ^ rr[2];
+    rr[3] = A_SENDER ^ rr[2];
     rr[4] = FLAG;
 
     printf("Sent RR: ");
@@ -138,14 +138,14 @@ void send_rr(int fd, unsigned char c) {
 void send_rej(int fd, unsigned char c) {
     unsigned char rej[5];
     rej[0] = FLAG;
-    rej[1] = A_RECEIVER;
+    rej[1] = A_SENDER;
     
     if(c == C_INFO1)
         rej[2] = C_REJ_1;
     else if(c == C_INFO2)
         rej[2] = C_REJ_2;
 
-    rej[3] = A_RECEIVER ^ rej[2];
+    rej[3] = A_SENDER ^ rej[2];
     rej[4] = FLAG;
 
     printf("Sent RRJ: ");

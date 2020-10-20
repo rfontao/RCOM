@@ -30,7 +30,7 @@ int llopen(char* port, int mode) {
 }
 
 int llread(int fd, char* buffer){
-	int read_size = read_frame(fd, buffer);
+	int read_size = read_info(fd, buffer);
 	if(buffer[4] == FLAG)
 		return -1;
 
@@ -123,31 +123,33 @@ int main(int argc, char **argv) {
     if ((argc < 3) ||
 		((strcmp("/dev/ttyS10", argv[2]) != 0) &&
 		 (strcmp("/dev/ttyS11", argv[2]) != 0)) || 
-         (strcmp("read", argv[1]) != 0) &&
-         (strcmp("write", argv[1])))
+         ((strcmp("read", argv[1]) != 0) &&
+         (strcmp("write", argv[1]))))
 	{
 		printf("Usage:\tnserial read/write SerialPort\n\tex: nserial read /dev/ttyS1\n");
 		exit(1);
 	}
 
-    if(strcmp(argv[1], "read") == 0) {
+    if(strcmp(argv[1], "read") == 0)
         app.status = RECEIVER;
-        app.fileDescriptor = llopen(argv[2], app.status);
-    } else {
+	else 
         app.status = SENDER;
-        app.fileDescriptor = llopen(argv[2], app.status);
-    }
 
+	if((app.fileDescriptor = llopen(argv[2], app.status)) < 0){
+		exit(-1);
+	}
 
 	if(app.status == RECEIVER){
 
 		char buffer[1024];
-		if(llread(app.fileDescriptor, buffer) < 0){
+		int read_size;
+		if((read_size = llread(app.fileDescriptor, buffer)) < 0){
 			printf("--Error reading--\n");
 			exit(-1);
 		}
 
-		printf("%s\n", buffer);
+		write(STDOUT_FILENO, buffer, read_size);
+		printf("\n");
 
 		if(llclose(app.fileDescriptor) < 0){
 			printf("Failed closing\n");
@@ -155,9 +157,9 @@ int main(int argc, char **argv) {
 		}
 
 	} else {
-		char word[12] = "Hello there\n";
+		char word[] = "Hello there";
 
-		if(llwrite(app.fileDescriptor, word, 12) < 0){
+		if(llwrite(app.fileDescriptor, word, 11) < 0){
 			printf("--Error writing--\n");
 			exit(-1);
 		}

@@ -11,7 +11,7 @@
 #include <signal.h>
 #include "message_macros.h"
 #include "common.h"
-#include "state_machine.h"~
+#include "state_machine.h"
 #include "write.h"
 
 #define BAUDRATE B38400
@@ -23,18 +23,18 @@
 #define MAX_FRAME_TRIES 	3
 #define FRAME_TIMEOUT		3
 
-volatile int STOP = FALSE;
+static volatile int STOP = FALSE;
 
-int fd; 	/*TODO: Change later*/
-int set_tries = 0;
-int disc_tries = 0;
-int alarm_flag = 0;
-int info_tries = 0;
+static int fd; 	/*TODO: Change later*/
+static int set_tries = 0;
+static int disc_tries = 0;
+static int alarm_flag = 0;
+static int info_tries = 0;
 
 unsigned char lastSent[1024];
 size_t last_sent_size = 0;
 
-void read_frame(int fd, unsigned char* out){
+void read_frame_writer(int fd, unsigned char* out, frame_type frame_type){
 
 	printf("Trying to read frame:\n");
 	//alarm(FRAME_TIMEOUT);
@@ -47,10 +47,10 @@ void read_frame(int fd, unsigned char* out){
 		if(alarm_flag == 1){
 			//TODO: Dar reset ao estado?
 			alarm_flag = 0;
-			reset_state(SENDER);
+			reset_state(SENDER_M);
 			continue;
 		}
-		if((st = machine(result, SENDER)) > 0)
+		if((st = machine(result, SENDER_M, frame_type)) > 0)
 			out[st - 1] = result;
 		
 		if(st == STOP_ST)
@@ -104,7 +104,7 @@ void send_info_frame(int fd, unsigned char* data, size_t size, int resend) {
     printf("Sent INFO frame : %s : %d\n", stuffed_frame, frame_size);
 }
 
-void sigalarm_set_handler(int sig){
+void sigalarm_set_handler_writer(int sig){
 	if(set_tries < MAX_FRAME_TRIES){
 		printf("Alarm timeout\n");
 		set_tries++;
@@ -116,7 +116,7 @@ void sigalarm_set_handler(int sig){
 	}
 }
 
-void sigalarm_disc_handler(int sig){
+void sigalarm_disc_handler_writer(int sig){
     if (disc_tries < MAX_FRAME_TRIES){
         printf("Alarm timeout\n");
         disc_tries++;
@@ -128,7 +128,7 @@ void sigalarm_disc_handler(int sig){
     }
 }
 
-void sigalarm_info_handler(int sig){
+void sigalarm_info_handler_writer(int sig){
     if (info_tries < MAX_FRAME_TRIES){
         printf("Alarm timeout\n");
         info_tries++;
@@ -141,7 +141,7 @@ void sigalarm_info_handler(int sig){
 }
 
 int send_set(int fd){
-	(void) signal(SIGALRM, sigalarm_set_handler);
+	(void) signal(SIGALRM, sigalarm_set_handler_writer);
 	printf("SET Alarm handler set\n");
 
 	alarm(FRAME_TIMEOUT);
@@ -151,7 +151,7 @@ int send_set(int fd){
 	send_frame(fd, SET);
 
 	while(alarm_flag == 0){
-		read_frame(fd, ua_frame);
+		read_frame_writer(fd, ua_frame, RESPONSE);
 		if(ua_frame[2] == C_UA){
 			printf("Received UA\n");
 			alarm(0);
@@ -167,14 +167,14 @@ int send_set(int fd){
 int send_disc_sender(int fd){
 	unsigned char disc_frame[255];
 
-    (void)signal(SIGALRM, sigalarm_disc_handler);
+    (void)signal(SIGALRM, sigalarm_disc_handler_writer);
     printf("DISC Alarm handler set\n");
 
 	alarm(FRAME_TIMEOUT);
     send_frame(fd, DISC_SENDER);
 
 	while(alarm_flag == 0){
-		read_frame(fd, disc_frame);
+		read_frame_writer(fd, disc_frame, COMMAND);
 		if(disc_frame[2] == C_DISC){
 			printf("Received DISC\n");
 			alarm(0);
@@ -190,7 +190,7 @@ int send_disc_sender(int fd){
 
 int send_info(int fd, char* data, int length){
 
-	(void)signal(SIGALRM, sigalarm_info_handler);
+	(void)signal(SIGALRM, sigalarm_info_handler_writer);
     printf("INFO Alarm handler set\n");
 
 	alarm(FRAME_TIMEOUT);
@@ -199,7 +199,7 @@ int send_info(int fd, char* data, int length){
 	int resend = FALSE;
 	while(alarm_flag == 0){
 		send_info_frame(fd, data, length, resend);
-		read_frame(fd, response);
+		read_frame_writer(fd, response, RESPONSE);
 
 		print_frame(response, 5);
 

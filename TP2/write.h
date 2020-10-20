@@ -20,4 +20,10 @@ int send_disc_sender(int fd);
 
 int send_info(int fd, char* data, int length);
 
+void set_alarm();
+
+void disc_alarm_writer();
+
+void info_alarm();
+
 #endif

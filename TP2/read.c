@@ -24,9 +24,9 @@ static volatile int STOP = FALSE;
 #define MAX_FRAME_TRIES 3
 #define FRAME_TIMEOUT 3
 
-static int fd;
 static int disc_tries = 0;
 static int alarm_flag = 0;
+static int retry_flag = 0;
 
 int read_frame_reader(int fd, unsigned char *data, frame_type frame_type){
 	unsigned char buf[1024];
@@ -40,6 +40,9 @@ int read_frame_reader(int fd, unsigned char *data, frame_type frame_type){
 
 	while(STOP == FALSE) {
 		read(fd, &result, 1);
+		if(retry_flag == 1){
+			return;
+		}
 
 		if(result == ESC) {
 			stuffed = 1;
@@ -122,13 +125,27 @@ void read_disc(int fd){
 }
 
 int read_info(int fd, char* buffer){
-	return read_frame_reader(fd, buffer, COMMAND);
+	int read_size;
+	if((read_size = read_frame_reader(fd, buffer, COMMAND)) < 0){
+		return -1;
+	}
+	if(buffer[4] == FLAG)
+		return -1;
+	return read_size;
+}
+
+void disc_alarm_receiver(){
+	struct sigaction a;
+	a.sa_handler = sigalarm_disc_handler_reader;
+	a.sa_flags = 0;
+	sigemptyset(&a.sa_mask);
+	sigaction(SIGALRM, &a, NULL);
+	printf("DISC Alarm handler set\n");
 }
 
 int send_disc_receiver(int fd){
 
-    (void)signal(SIGALRM, sigalarm_disc_handler_reader);
-    printf("DISC Alarm handler set\n");
+    disc_alarm_receiver();
 
 	alarm(FRAME_TIMEOUT);
     send_frame(fd, DISC_RECEIVER);
@@ -137,6 +154,11 @@ int send_disc_receiver(int fd){
 
 	while(alarm_flag == 0){
 		read_frame_reader(fd, ua_frame, RESPONSE);
+		if(retry_flag == 1){
+			send_frame(fd, DISC_RECEIVER);
+			retry_flag = 0;
+			continue;
+		}
 		if(ua_frame[2] == C_UA){
 			printf("Received UA\n");
 			alarm(0);
@@ -153,7 +175,8 @@ void sigalarm_disc_handler_reader(int sig){
     if (disc_tries < MAX_FRAME_TRIES){
         printf("Alarm timeout\n");
         disc_tries++;
-        send_frame(fd, DISC_SENDER);
+		retry_flag = 1;
+        // send_frame(fd, DISC_RECEIVER);
         alarm(FRAME_TIMEOUT);
     } else {
         perror("DISC max tries reached\n");

@@ -15,4 +15,6 @@ void sigalarm_disc_handler_reader(int sig);
 
 int read_info(int fd, char* buffer);
 
+void disc_alarm_receiver();
+
 #endif

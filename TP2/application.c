@@ -30,11 +30,7 @@ int llopen(char* port, int mode) {
 }
 
 int llread(int fd, char* buffer){
-	int read_size = read_info(fd, buffer);
-	if(buffer[4] == FLAG)
-		return -1;
-
-	return read_size;
+	return read_info(fd, buffer);
 }
 
 int llwrite(int fd, char* buffer, int length){
@@ -136,6 +132,7 @@ int main(int argc, char **argv) {
         app.status = SENDER;
 
 	if((app.fileDescriptor = llopen(argv[2], app.status)) < 0){
+		printf("GG\n");
 		exit(-1);
 	}
 

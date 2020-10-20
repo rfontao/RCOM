@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <errno.h>
 #include "message_macros.h"
 #include "common.h"
 #include "state_machine.h"
@@ -25,11 +26,11 @@
 
 static volatile int STOP = FALSE;
 
-static int fd; 	/*TODO: Change later*/
 static int set_tries = 0;
 static int disc_tries = 0;
-static int alarm_flag = 0;
 static int info_tries = 0;
+static int alarm_flag = 0;
+static int retry_flag = 0;
 
 unsigned char lastSent[1024];
 size_t last_sent_size = 0;
@@ -44,12 +45,15 @@ void read_frame_writer(int fd, unsigned char* out, frame_type frame_type){
 
 	while (STOP == FALSE){
 		read(fd, &result, 1);
+
 		if(alarm_flag == 1){
 			//TODO: Dar reset ao estado?
 			alarm_flag = 0;
-			reset_state(SENDER_M);
-			continue;
+			return;
 		}
+		if(retry_flag == 1){
+			return;
+		} 
 		if((st = machine(result, SENDER_M, frame_type)) > 0)
 			out[st - 1] = result;
 		
@@ -108,7 +112,8 @@ void sigalarm_set_handler_writer(int sig){
 	if(set_tries < MAX_FRAME_TRIES){
 		printf("Alarm timeout\n");
 		set_tries++;
-		send_frame(fd, SET);
+		retry_flag = 1;
+		// send_frame(fd, SET);
 		alarm(FRAME_TIMEOUT);
 	} else {
 		perror("SET max tries reached\n");
@@ -120,7 +125,8 @@ void sigalarm_disc_handler_writer(int sig){
     if (disc_tries < MAX_FRAME_TRIES){
         printf("Alarm timeout\n");
         disc_tries++;
-        send_frame(fd, DISC_SENDER);
+		retry_flag = 1;
+        // send_frame(fd, DISC_SENDER);
         alarm(FRAME_TIMEOUT);
     } else {
         perror("DISC max tries reached\n");
@@ -132,7 +138,8 @@ void sigalarm_info_handler_writer(int sig){
     if (info_tries < MAX_FRAME_TRIES){
         printf("Alarm timeout\n");
         info_tries++;
-        send_info_frame(fd, lastSent, last_sent_size, TRUE);
+		retry_flag = 1;
+        // send_info_frame(fd, lastSent, last_sent_size, TRUE);
         alarm(FRAME_TIMEOUT);
     } else {
         perror("INFO max tries reached\n");
@@ -140,9 +147,36 @@ void sigalarm_info_handler_writer(int sig){
     }
 }
 
-int send_set(int fd){
-	(void) signal(SIGALRM, sigalarm_set_handler_writer);
+void set_alarm(){
+	struct sigaction a;
+	a.sa_handler = sigalarm_set_handler_writer;
+	a.sa_flags = 0;
+	sigemptyset(&a.sa_mask);
+	sigaction(SIGALRM, &a, NULL);
 	printf("SET Alarm handler set\n");
+}
+
+void disc_alarm_writer(){
+	struct sigaction a;
+	a.sa_handler = sigalarm_disc_handler_writer;
+	a.sa_flags = 0;
+	sigemptyset(&a.sa_mask);
+	sigaction(SIGALRM, &a, NULL);
+	printf("DISC Alarm handler set\n");
+}
+
+void info_alarm(){
+	struct sigaction a;
+	a.sa_handler = sigalarm_info_handler_writer;
+	a.sa_flags = 0;
+	sigemptyset(&a.sa_mask);
+	sigaction(SIGALRM, &a, NULL);
+	printf("INFO Alarm handler set\n");
+}
+
+int send_set(int fd){
+
+	set_alarm();
 
 	alarm(FRAME_TIMEOUT);
 
@@ -152,6 +186,11 @@ int send_set(int fd){
 
 	while(alarm_flag == 0){
 		read_frame_writer(fd, ua_frame, RESPONSE);
+		if(retry_flag == 1){
+			send_frame(fd, SET);
+			retry_flag = 0;
+			continue;
+		}
 		if(ua_frame[2] == C_UA){
 			printf("Received UA\n");
 			alarm(0);
@@ -167,14 +206,18 @@ int send_set(int fd){
 int send_disc_sender(int fd){
 	unsigned char disc_frame[255];
 
-    (void)signal(SIGALRM, sigalarm_disc_handler_writer);
-    printf("DISC Alarm handler set\n");
+    disc_alarm_writer();
 
 	alarm(FRAME_TIMEOUT);
     send_frame(fd, DISC_SENDER);
 
 	while(alarm_flag == 0){
 		read_frame_writer(fd, disc_frame, COMMAND);
+		if(retry_flag == 1){
+			send_frame(fd, DISC_SENDER);
+			retry_flag = 0;
+			continue;
+		}
 		if(disc_frame[2] == C_DISC){
 			printf("Received DISC\n");
 			alarm(0);
@@ -190,16 +233,23 @@ int send_disc_sender(int fd){
 
 int send_info(int fd, char* data, int length){
 
-	(void)signal(SIGALRM, sigalarm_info_handler_writer);
-    printf("INFO Alarm handler set\n");
+	info_alarm();
 
 	alarm(FRAME_TIMEOUT);
 
 	unsigned char response[255];
 	int resend = FALSE;
 	while(alarm_flag == 0){
-		send_info_frame(fd, data, length, resend);
+		if(retry_flag){
+			send_info_frame(fd, lastSent, last_sent_size, TRUE);
+			retry_flag = 0;
+		} else {
+			send_info_frame(fd, data, length, resend);
+		}
 		read_frame_writer(fd, response, RESPONSE);
+		if(retry_flag == 1){
+			continue;
+		}
 
 		print_frame(response, 5);
 

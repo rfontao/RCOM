@@ -12,6 +12,7 @@
 #include "message_macros.h"
 #include "common.h"
 #include "state_machine.h"
+#include "read.h"
 
 #define BAUDRATE B38400
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
@@ -27,7 +28,7 @@ int fd;
 int disc_tries = 0;
 int alarm_flag = 0;
 
-size_t read_frame(int fd, unsigned char *data){
+int read_frame(int fd, unsigned char *data){
 	unsigned char buf[1024];
 	unsigned char result;
 	STATE st;
@@ -100,8 +101,8 @@ size_t read_frame(int fd, unsigned char *data){
 	return k - 4;
 }
 
-int read_set(int fd) {
-	char frame[255];
+void read_set(int fd){
+	unsigned char frame[255];
 
 	while(1){
 		read_frame(fd, frame);
@@ -113,111 +114,51 @@ int read_set(int fd) {
 	}
 }
 
-void sigalarm_disc_handler(int sig){
-    if (disc_tries < MAX_FRAME_TRIES){
-        printf("Alarm timeout\n");
-        disc_tries++;
-        alarm_flag = 1;
-        send_frame(fd, DISC_SENDER);
-        alarm(FRAME_TIMEOUT);
-    } else {
-        perror("DISC max tries reached exiting...\n");
-        exit(2);
-    }
-}
-
-int main(int argc, char **argv){
-	struct termios oldtio, newtio;
-
-	if ((argc < 2) ||
-		((strcmp("/dev/ttyS10", argv[1]) != 0) &&
-		 (strcmp("/dev/ttyS11", argv[1]) != 0)))
-	{
-		printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
-		exit(1);
-	}
-
-	/*
-    Open serial port device for reading and writing and not as controlling tty
-    because we don't want to get killed if linenoise sends CTRL-C.
-  */
-
-	fd = open(argv[1], O_RDWR | O_NOCTTY);
-	if (fd < 0){
-		perror(argv[1]);
-		exit(-1);
-	}
-
-	if (tcgetattr(fd, &oldtio) == -1){ /* save current port settings */
-		perror("tcgetattr");
-		exit(-1);
-	}
-
-	bzero(&newtio, sizeof(newtio));
-	newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
-	newtio.c_iflag = IGNPAR;
-	newtio.c_oflag = 0;
-
-	/* set input mode (non-canonical, no echo,...) */
-	newtio.c_lflag = 0;
-
-	newtio.c_cc[VTIME] = 0; /* inter-character timer unused */
-	newtio.c_cc[VMIN] = 1;	/* blocking read until 5 chars received */
-
-	/* 
-    VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a 
-    leitura do(s) pr�ximo(s) caracter(es)
-  */
-
-	tcflush(fd, TCIOFLUSH);
-
-	if (tcsetattr(fd, TCSANOW, &newtio) == -1){
-		perror("tcsetattr");
-		exit(-1);
-	}
-
-	printf("New termios structure set\n");
-
-	unsigned char frame[255];
-	// Receive SET
-	read_set(fd);
-
-	unsigned char data[4096];
-	unsigned char buffer[1024];
-	size_t buffer_count = 0;
-	while(1){
-		size_t read_size = read_frame(fd, buffer);
-		if(buffer[2] == C_DISC){
-			printf("Received DISC frame\n");
-			break;
-		} else {
-			for(size_t i = 0; i < read_size; ++i){
-				data[buffer_count + i] = buffer[i];
-			}
-			buffer_count += read_size;
-		}
-	}
-	write(STDOUT_FILENO, data, buffer_count);
-	printf("\n");
+int send_disc_receiver(int fd){
+	unsigned char disc_frame[255];
 
     (void)signal(SIGALRM, sigalarm_disc_handler);
     printf("DISC Alarm handler set\n");
 
 	alarm(FRAME_TIMEOUT);
-    send_frame(fd, DISC_RECEIVER);
+    send_frame(fd, DISC_SENDER);
 
+	unsigned char ua_frame[255];
 
-	//TODO: make send disc receiver frame again if it does not get response
-    unsigned char ua_frame[255];
-    read_frame(fd, ua_frame);
-
-	if(ua_frame[2] == C_UA){
-		printf("Received UA\n");
-		alarm(0);
+	while(alarm_flag == 0){
+		read_frame(fd, ua_frame);
+		if(disc_frame[2] == C_UA){
+			printf("Received UA\n");
+			alarm(0);
+			return 0;
+		} else {
+			printf("Wasn't UA\n");
+		}
 	}
-    
-    sleep(1);
-	tcsetattr(fd, TCSANOW, &oldtio);
-	close(fd);
-	return 0;
+	alarm_flag = 0;
+	return -1;
+}
+
+void read_disc(int fd){
+	unsigned char frame[255];
+
+	while(1){
+		read_frame(fd, frame);
+		if(frame[2] == C_DISC){
+			printf("Received DISC frame\n");
+			break;
+		}
+	}
+}
+
+void sigalarm_disc_handler(int sig){
+    if (disc_tries < MAX_FRAME_TRIES){
+        printf("Alarm timeout\n");
+        disc_tries++;
+        send_frame(fd, DISC_SENDER);
+        alarm(FRAME_TIMEOUT);
+    } else {
+        perror("DISC max tries reached\n");
+        alarm_flag = 1;
+    }
 }

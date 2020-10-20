@@ -19,6 +19,12 @@ typedef struct
 
 int llopen(char* port, int mode);
 
-void set_port(char* port, int* fd);
+int set_port(char* port);
+
+int llwrite(int fd, char* buffer, int length);
+
+int llread(int fd, char* buffer);
+
+int llclose(int fd);
 
 #endif

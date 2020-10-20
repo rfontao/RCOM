@@ -60,7 +60,7 @@ int assemble_data_packet(unsigned char* data, int length, unsigned char* packet)
 
 int assemble_control_packet(int type, char *filename, int fileSize, unsigned char* packet) {
 
-	if(type = START) 
+	if(type = START_C) 
 		packet[0] =	C_START;
 	else 
 		packet[0] = C_END;
@@ -184,8 +184,6 @@ int close_port(){
 
 int main(int argc, char **argv) {
 
-    int mode;
-
     if ((argc < 3) ||
 		((strcmp("/dev/ttyS10", argv[2]) != 0) &&
 		 (strcmp("/dev/ttyS11", argv[2]) != 0)) || 
@@ -226,10 +224,18 @@ int main(int argc, char **argv) {
 	} else {
 		char word[] = "Hello there";
 
+		//send_control(START, filename, fileSize);
+		send_control(START_C, "word", 12);
+
 		if(llwrite(app.fileDescriptor, word, 11) < 0){
 			printf("--Error writing--\n");
 			exit(-1);
 		}
+
+		//ler dados do ficheiro e chamar send_data()
+
+		//send_control(END, filename, fileSize);
+		send_control(END_C, "word", 12);
 
 		if(llclose(app.fileDescriptor) < 0){
 			printf("Failed closing\n");

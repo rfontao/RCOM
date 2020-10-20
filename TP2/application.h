@@ -10,8 +10,8 @@
 #define FALSE 0
 #define TRUE 1
 
-#define START 0
-#define END 1
+#define START_C 0
+#define END_C 1
 
 #define C_DATA  0x01
 #define C_START 0x02

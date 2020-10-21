@@ -14,8 +14,9 @@
 applicationLayer app;
 struct termios oldtio, newtio;
 
-long readFileBytes(const char *name, char* result){  //TODO: Check for errors
-    FILE *fl = fopen(name, "r");  
+long readFileBytes(const char *name, char** result){  //TODO: Check for errors
+    FILE *fl = fopen("pinguim.gif", "rb");  
+	printf("HELLO\n");
     fseek(fl, 0, SEEK_END);  
     long len = ftell(fl);  
     result = (char*)malloc(len * sizeof(char));  
@@ -203,7 +204,7 @@ long read_control(char* control, char* fileName){
 			exit(-1);
 	}
 
-	if(control[0] != C_START){
+	if(control[0] != C_START && control != C_END){
 		return -1;
 	}
 
@@ -216,21 +217,27 @@ long read_control(char* control, char* fileName){
 		for(int i = 0; i < block_size; i++){
 			file_size += (control[i+2] << (j * 8)) & 0xff;
 			j--;
-			// size[i] = control[i + 2];
 		}
 
-		int name_size = control[block_size + 3];
+		int name_size = control[block_size + 4];
 		for(int i = 0; i < name_size; i++){
 			fileName[i] = control[i + block_size + 4];
 		}
-	}//TODO MAKE FOR THE OTHER CASE
+	} else if(control[1] == FILE_NAME){
+		int name_size = control[2];
+		for(int i = 0; i < name_size; i++){
+			fileName[i] = control[i + 3];
+		}
 
-	for(int i = 1; i < read_size; ++i){
-		
+		int block_size = control[name_size + 4];
+		int j = block_size - 1;
+		for(int i = 0; i < block_size; i++){
+			file_size += (control[name_size + i + 4] << (j * 8)) & 0xff;
+			j--;
+		}
 	}
 
-
-
+	return file_size;
 }
 
 int main(int argc, char **argv) {
@@ -262,15 +269,36 @@ int main(int argc, char **argv) {
 		char buffer[1024];
 		int read_size;
 
-		int file_size = read_control(control, )
-		if((read_size = llread(app.fileDescriptor, buffer)) < 0){
-			printf("--Error reading--\n");
-			exit(-1);
+		int file_size = read_control(control, file_name);
+
+		char* file_buffer = (char*)malloc(sizeof(char) * file_size);
+		long curr_index = 0;
+
+		int control_found = 0;
+
+		while(control_found == 0){
+			if((read_size = llread(app.fileDescriptor, buffer)) < 0){
+				printf("--Error reading--\n");
+				exit(-1);
+			}
+
+			//TODO CHANGE LATER
+			if(control[0] == C_END){
+				control_found = 0;
+				break;
+			} 
+
+			for(int i = 4; i < file_size - 4; i++){
+				file_buffer[curr_index + i - 4] = buffer[i];
+			}
+			curr_index += (read_size - 4);
+
 		}
+		printf("HELLO\n");
+		writeFileBytes("pinguim2.gif", file_size, file_buffer);
 
+		free(file_buffer);
 
-		write(STDOUT_FILENO, buffer, read_size);
-		printf("\n");
 
 		if(llclose(app.fileDescriptor) < 0){
 			printf("Failed closing\n");
@@ -278,10 +306,10 @@ int main(int argc, char **argv) {
 		}
 
 	} else {
-		char file_name[] = "Hello there";
+		char file_name[11] = "pinguim.gif";
 
 		char* file;
-		long file_size = readFileBytes(file_name, file);
+		long file_size = readFileBytes(file_name, &file);
 		//send_control(START, filename, fileSize);
 		send_control(START_C, file_name, file_size);
 

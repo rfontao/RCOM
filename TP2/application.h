@@ -39,9 +39,9 @@ int llclose(int fd);
 
 int close_port();
 
-int assemble_control_packet(int type, char *filename, int fileSize, unsigned char* packet);
+int assemble_control_packet(int type, char *filename, int fileSize, char* packet);
 
-int assemble_data_packet(unsigned char* data, int length, unsigned char* packet);
+int assemble_data_packet(char* data, int length, int sequenceN, char* packet);
 
 int send_control(int type, char *filename, int fileSize);
 

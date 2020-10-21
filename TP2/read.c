@@ -129,8 +129,10 @@ int read_info(int fd, char* buffer){
 	if((read_size = read_frame_reader(fd, buffer, COMMAND)) < 0){
 		return -1;
 	}
-	if(buffer[4] == FLAG)
+	if(buffer[4] == FLAG){
+		printf("Read strange packet. Expected info\n");
 		return -1;
+	}
 	return read_size;
 }
 

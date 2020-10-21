@@ -14,21 +14,40 @@
 applicationLayer app;
 struct termios oldtio, newtio;
 
-long readFileBytes(const char *name, char** result){  //TODO: Check for errors
+#define MAX_CHUNK_SIZE 500
+
+long readFileBytes(const char *name, char* result, long offset, long size_to_read){  //TODO: Check for errors
     FILE *fl = fopen("pinguim.gif", "rb");  
-	printf("HELLO\n");
-    fseek(fl, 0, SEEK_END);  
-    long len = ftell(fl);  
-    result = (char*)malloc(len * sizeof(char));  
-    fseek(fl, 0, SEEK_SET);  
-    fread(result, 1, len, fl);  
+	if(fl == NULL){
+		printf("Failed to open file\n");
+		exit(-1);
+	}
+	fseek(fl, offset, SEEK_SET);
+    long len = fread(result, 1, size_to_read, fl); 
     fclose(fl);  
     return len;  
-} 
+}
 
-int writeFileBytes(const char *name, long size, char* data){  //TODO: Check for errors
-    FILE *fl = fopen(name, "w+");
-    fwrite(data, 1, size, fl);
+long readFileInfo(const char *name){
+	FILE *fl = fopen("pinguim.gif", "rb");
+	fseek(fl, 0, SEEK_END);
+	long len = ftell(fl);
+	fclose(fl);
+	return len;
+}
+
+int writeFileBytes(const char *name, long size, char* data, long offset){  //TODO: Check for errors
+	FILE* fl;
+	if(offset == 0){
+    	fl = fopen("pinguim2.gif", "wb");
+	} else {
+		fl = fopen("pinguim2.gif", "ab");
+	}
+	if(fl == NULL){
+		printf("Couldnt open file for writing\n");
+		exit(-1);
+	}
+    fwrite(data, 1, MAX_CHUNK_SIZE, fl);
 	fclose(fl);
     return 0;  
 }
@@ -271,7 +290,8 @@ int main(int argc, char **argv) {
 
 		int file_size = read_control(control, file_name);
 
-		char* file_buffer = (char*)malloc(sizeof(char) * file_size);
+		// char file_buffer = (char*)malloc(sizeof(char) * file_size);
+		char file_buffer[MAX_CHUNK_SIZE];
 		long curr_index = 0;
 
 		int control_found = 0;
@@ -279,25 +299,26 @@ int main(int argc, char **argv) {
 		while(control_found == 0){
 			if((read_size = llread(app.fileDescriptor, buffer)) < 0){
 				printf("--Error reading--\n");
+				// free(file_buffer);
 				exit(-1);
 			}
 
 			//TODO CHANGE LATER
-			if(control[0] == C_END){
+			if(buffer[0] == C_END){
 				control_found = 0;
 				break;
 			} 
 
-			for(int i = 4; i < file_size - 4; i++){
-				file_buffer[curr_index + i - 4] = buffer[i];
+			for(int i = 4; i < read_size - 4; i++){
+				file_buffer[i - 4] = buffer[i];
 			}
 			curr_index += (read_size - 4);
 
+			writeFileBytes("pinguim2.gif", read_size - 4, file_buffer, curr_index);
 		}
 		printf("HELLO\n");
-		writeFileBytes("pinguim2.gif", file_size, file_buffer);
 
-		free(file_buffer);
+		// free(file_buffer);
 
 
 		if(llclose(app.fileDescriptor) < 0){
@@ -308,36 +329,43 @@ int main(int argc, char **argv) {
 	} else {
 		char file_name[11] = "pinguim.gif";
 
-		char* file;
-		long file_size = readFileBytes(file_name, &file);
+		long file_size = readFileInfo(file_name);
+		long curr_index = 0;
+		char file[MAX_CHUNK_SIZE];
 		//send_control(START, filename, fileSize);
 		send_control(START_C, file_name, file_size);
 
 		int size_remaining = file_size;
-		long curr_index = 0;
 		int size_to_send;
 
-		while(size_remaining > 0){
+		while(curr_index < file_size){
 			
-			char packet_data[150];
-			if(size_remaining >= 150){
-				for(int i = 0; i < 150; ++i){
-					packet_data[i] = file[curr_index + 0];
-				}
-				curr_index += 150;
-				size_remaining -= 150;
-				size_to_send = 150;
+			if(size_remaining < MAX_CHUNK_SIZE){
+				size_to_send = readFileBytes(file_name, file, curr_index, size_remaining);
 			} else {
-				for(int i = 0; i < size_remaining; ++i){
-					packet_data[i] = file[curr_index + 0];
-				}
-				curr_index += size_remaining;
-				size_to_send = size_remaining;
-				size_remaining = 0;
+				size_to_send = readFileBytes(file_name, file, curr_index, MAX_CHUNK_SIZE);
 			}
+			
+			curr_index += size_to_send;
+			// char packet_data[150];
+			// if(size_remaining >= 150){
+			// 	for(int i = 0; i < 150; ++i){
+			// 		packet_data[i] = file[curr_index + 0];
+			// 	}
+			// 	curr_index += 150;
+			// 	size_remaining -= 150;
+			// 	size_to_send = 150;
+			// } else {
+			// 	for(int i = 0; i < size_remaining; ++i){
+			// 		packet_data[i] = file[curr_index + 0];
+			// 	}
+			// 	curr_index += size_remaining;
+			// 	size_to_send = size_remaining;
+			// 	size_remaining = 0;
+			// }
 
-			char packet[154];
-			int packet_size = assemble_data_packet(packet_data, size_to_send,size_to_send,packet);
+			char packet[MAX_CHUNK_SIZE + 4];
+			int packet_size = assemble_data_packet(file, size_to_send, size_to_send, packet);
 
 			if(llwrite(app.fileDescriptor, packet, packet_size) < 0){
 				printf("--Error writing--\n");
@@ -347,8 +375,8 @@ int main(int argc, char **argv) {
 
 		//ler dados do ficheiro e chamar send_data()
 		send_control(END_C, file_name, file_size);
+		printf("Sent Control\n");
 
-		free(file);
 		if(llclose(app.fileDescriptor) < 0){
 			printf("Failed closing\n");
 			exit(-1);

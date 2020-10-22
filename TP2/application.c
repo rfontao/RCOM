@@ -17,7 +17,8 @@ struct termios oldtio, newtio;
 #define MAX_CHUNK_SIZE 500
 
 long readFileBytes(const char *name, char* result, long offset, long size_to_read){  //TODO: Check for errors
-    FILE *fl = fopen("pinguim.gif", "rb");  
+    //FILE *fl = fopen("pinguim.gif", "rb");  
+	FILE *fl = fopen("teste.txt", "rb");  
 	if(fl == NULL){
 		printf("Failed to open file\n");
 		exit(-1);
@@ -29,7 +30,8 @@ long readFileBytes(const char *name, char* result, long offset, long size_to_rea
 }
 
 long readFileInfo(const char *name){
-	FILE *fl = fopen("pinguim.gif", "rb");
+	// FILE *fl = fopen("pinguim.gif", "rb");
+	FILE *fl = fopen("teste.txt", "rb"); 
 	fseek(fl, 0, SEEK_END);
 	long len = ftell(fl);
 	fclose(fl);
@@ -39,9 +41,11 @@ long readFileInfo(const char *name){
 int writeFileBytes(const char *name, long size, char* data, long offset){  //TODO: Check for errors
 	FILE* fl;
 	if(offset == 0){
-    	fl = fopen("pinguim2.gif", "wb");
+    	// fl = fopen("pinguim2.gif", "wb");
+		fl = fopen("teste2.txt", "wb");
 	} else {
-		fl = fopen("pinguim2.gif", "ab");
+		// fl = fopen("pinguim2.gif", "ab");
+		fl = fopen("teste2.txt", "ab");
 	}
 	if(fl == NULL){
 		printf("Couldnt open file for writing\n");
@@ -49,6 +53,7 @@ int writeFileBytes(const char *name, long size, char* data, long offset){  //TOD
 	}
     fwrite(data, 1, MAX_CHUNK_SIZE, fl);
 	fclose(fl);
+	sleep(2);
     return 0;  
 }
 
@@ -223,7 +228,7 @@ long read_control(char* control, char* fileName){
 			exit(-1);
 	}
 
-	if(control[0] != C_START && control != C_END){
+	if(control[0] != C_START || control[0] != C_END){
 		return -1;
 	}
 
@@ -309,12 +314,14 @@ int main(int argc, char **argv) {
 				break;
 			} 
 
-			for(int i = 4; i < read_size - 4; i++){
+			for(int i = 4; i < read_size; i++){
 				file_buffer[i - 4] = buffer[i];
 			}
 			curr_index += (read_size - 4);
 
-			writeFileBytes("pinguim2.gif", read_size - 4, file_buffer, curr_index);
+			//writeFileBytes("pinguim2.gif", read_size - 4, file_buffer, curr_index);
+		
+			writeFileBytes("teste2.txt", read_size - 4, file_buffer, curr_index);
 		}
 		printf("HELLO\n");
 
@@ -327,7 +334,8 @@ int main(int argc, char **argv) {
 		}
 
 	} else {
-		char file_name[11] = "pinguim.gif";
+		//char file_name[11] = "pinguim.gif";
+		char file_name[] = "teste.txt";
 
 		long file_size = readFileInfo(file_name);
 		long curr_index = 0;
@@ -363,9 +371,10 @@ int main(int argc, char **argv) {
 			// 	size_to_send = size_remaining;
 			// 	size_remaining = 0;
 			// }
+			size_remaining -= size_to_send;
 
 			char packet[MAX_CHUNK_SIZE + 4];
-			int packet_size = assemble_data_packet(file, size_to_send, size_to_send, packet);
+			int packet_size = assemble_data_packet(file, size_to_send, size_to_send, packet); //TODO: sequenceN
 
 			if(llwrite(app.fileDescriptor, packet, packet_size) < 0){
 				printf("--Error writing--\n");

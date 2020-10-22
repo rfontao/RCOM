@@ -17,8 +17,7 @@ struct termios oldtio, newtio;
 #define MAX_CHUNK_SIZE 500
 
 long readFileBytes(const char *name, char* result, long offset, long size_to_read){  //TODO: Check for errors
-    FILE *fl = fopen("pinguim.gif", "rb");  
-	//FILE *fl = fopen("teste.txt", "rb");  
+    FILE *fl = fopen(name, "rb");  
 	if(fl == NULL){
 		printf("Failed to open file\n");
 		exit(-1);
@@ -32,8 +31,7 @@ long readFileBytes(const char *name, char* result, long offset, long size_to_rea
 }
 
 long readFileInfo(const char *name){
-	FILE *fl = fopen("pinguim.gif", "rb");
-	// FILE *fl = fopen("teste.txt", "rb"); 
+	FILE *fl = fopen(name, "rb");
 	fseek(fl, 0, SEEK_END);
 	long len = ftell(fl);
 	fclose(fl);
@@ -43,11 +41,9 @@ long readFileInfo(const char *name){
 int writeFileBytes(const char *name, long size, char* data, long offset){  //TODO: Check for errors
 	FILE* fl;
 	if(offset == 0){
-    	fl = fopen("pinguim2.gif", "wb");
-		// fl = fopen("teste2.txt", "wb");
+    	fl = fopen(name, "wb");
 	} else {
-		fl = fopen("pinguim2.gif", "ab");
-		// fl = fopen("teste2.txt", "ab");
+		fl = fopen(name, "ab");
 	}
 	if(fl == NULL){
 		printf("Couldnt open file for writing\n");
@@ -267,13 +263,13 @@ long read_control(char* control, char* fileName){
 
 int main(int argc, char **argv) {
 
-    if ((argc < 3) ||
-		((strcmp("/dev/ttyS10", argv[2]) != 0) &&
-		 (strcmp("/dev/ttyS11", argv[2]) != 0)) || 
+    if ((argc < 4) ||
+		((strcmp("/dev/ttyS10", argv[3]) != 0) &&
+		 (strcmp("/dev/ttyS11", argv[3]) != 0)) || 
          ((strcmp("read", argv[1]) != 0) &&
          (strcmp("write", argv[1]))))
 	{
-		printf("Usage:\tnserial read/write SerialPort\n\tex: nserial read /dev/ttyS1\n");
+		printf("Usage:\tnserial read/write filename SerialPort\n\tex: nserial read pinguim.gif /dev/ttyS1\n");
 		exit(1);
 	}
 
@@ -282,15 +278,17 @@ int main(int argc, char **argv) {
 	else 
         app.status = SENDER;
 
-	if((app.fileDescriptor = llopen(argv[2], app.status)) < 0){
+	if((app.fileDescriptor = llopen(argv[3], app.status)) < 0){
 		printf("GG\n");
 		exit(-1);
 	}
 
+	char file_name[1024];
+	strcpy(file_name, argv[2]);
+	
 	if(app.status == RECEIVER){
 
 		char control[1024];
-		char file_name[1024];
 		char buffer[1024];
 		int read_size;
 
@@ -329,7 +327,7 @@ int main(int argc, char **argv) {
 			curr_index += packet_size;
 
 			
-			writeFileBytes("pinguim2.gif", read_size - 4, file_buffer, curr_index);
+			writeFileBytes(file_name, read_size - 4, file_buffer, curr_index);
 			// writeFileBytes("teste2.txt", read_size - 4, file_buffer, curr_index);
 		}
 		printf("HELLO\n");
@@ -343,8 +341,6 @@ int main(int argc, char **argv) {
 		}
 
 	} else {
-		char file_name[] = "pinguim.gif";
-		// char file_name[] = "teste.txt";
 
 		long file_size = readFileInfo(file_name);
 		long curr_index = 0;

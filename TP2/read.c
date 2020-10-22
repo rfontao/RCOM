@@ -79,7 +79,7 @@ int read_frame_reader(int fd, unsigned char *data, frame_type frame_type){
 		return 5; //TODO: Maybe change for the size of normal frame
 	}
 
-	printf("RECEIVED INFO %s\n", buf);
+	printf("RECEIVED INFO %s : %d\n", buf, i);
 
 
 	int j = 5;

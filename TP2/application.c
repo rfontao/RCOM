@@ -14,7 +14,7 @@
 applicationLayer app;
 struct termios oldtio, newtio;
 
-#define MAX_CHUNK_SIZE 20
+#define MAX_CHUNK_SIZE 500
 
 long readFileBytes(const char *name, char* result, long offset, long size_to_read){  //TODO: Check for errors
     FILE *fl = fopen("pinguim.gif", "rb");  
@@ -314,9 +314,9 @@ int main(int argc, char **argv) {
 				control_found = 0;
 				break;
 			} 
-			
-			int packet_size = buffer[2] * 256 + buffer[3];
-			printf("PACKET SIZE: %d\n", packet_size);
+
+			long packet_size = (unsigned char)(buffer[2]) * 256 + (unsigned char)(buffer[3]);
+			printf("PACKET SIZE: %ld\n", packet_size);
 
 			char file_buffer[packet_size];
 
@@ -328,9 +328,9 @@ int main(int argc, char **argv) {
 
 			curr_index += packet_size;
 
-			//writeFileBytes("pinguim2.gif", read_size - 4, file_buffer, curr_index);
-		
-			writeFileBytes("teste2.txt", read_size - 4, file_buffer, curr_index);
+			
+			writeFileBytes("pinguim2.gif", read_size - 4, file_buffer, curr_index);
+			// writeFileBytes("teste2.txt", read_size - 4, file_buffer, curr_index);
 		}
 		printf("HELLO\n");
 
@@ -356,7 +356,6 @@ int main(int argc, char **argv) {
 		int size_to_send;
 
 		while(curr_index < file_size){
-			printf("CURRENT INDEX: %d\n", curr_index);
 			
 			if(size_remaining < MAX_CHUNK_SIZE){
 				size_to_send = readFileBytes(file_name, file, curr_index, size_remaining);

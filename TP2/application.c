@@ -38,17 +38,15 @@ long readFileInfo(const char *name){
 	return len;
 }
 
-int writeFileBytes(const char *name, long size, char* data, long offset){  //TODO: Check for errors
-	FILE* fl;
-	if(offset == 0){
-    	fl = fopen(name, "wb");
-	} else {
-		fl = fopen(name, "ab");
-	}
+int writeFileBytes(const char *name, long size, char* data){  //TODO: Check for errors
+	printf("NAME %s\n", name);
+	FILE* fl = fopen(name, "wb");
+
 	if(fl == NULL){
 		printf("Couldnt open file for writing\n");
 		exit(-1);
 	}
+
     fwrite(data, 1, size, fl);
 	fclose(fl);
     return 0;  
@@ -100,22 +98,44 @@ int assemble_control_packet(int type, char *filename, int fileSize, char* packet
 		packet[0] =	C_START;
 	else 
 		packet[0] = C_END;
-
+	
 	packet[1] = FILE_SIZE;
 	packet[2] = sizeof(fileSize);
 
+	//TODO : improve 
 	packet[3] = (fileSize >> 24) & 0xff;
 	packet[4] = (fileSize >> 16) & 0xff;
 	packet[5] = (fileSize >> 8) & 0xff;
 	packet[6] = fileSize & 0xff;
 
 	packet[7] = FILE_NAME;
-	packet[8] = strlen(filename);
-	
+
+	char ff[] = "pinguim2.gif"; //TODO : CAREFUL, HARDCODED
+	// char ff[] = "windoh2.webm";
+
+	packet[8] = strlen(ff);
+
 	int i = 0;
-	for(; i < strlen(filename); ++i) {
-		packet[9 + i] = filename[i];
+	for(; i < strlen(ff); ++i) {
+		packet[9 + i] = ff[i];
 	}
+
+
+	//Other way around
+
+	// packet[1] = FILE_NAME;
+	// packet[2] = strlen(ff);
+	// int i = 0;
+	// for(; i < strlen(ff); ++i) {
+	// 	packet[3 + i] = ff[i];
+	// }
+
+	// packet[i + 3] = FILE_SIZE;
+	// packet[i + 4] = sizeof(fileSize);
+	// packet[i + 5] = (fileSize >> 24) & 0xff;
+	// packet[i + 6] = (fileSize >> 16) & 0xff;
+	// packet[i + 7] = (fileSize >> 8) & 0xff;
+	// packet[i + 8] = fileSize & 0xff;
 
 	return 9 + i;
 }
@@ -218,31 +238,33 @@ int close_port(){
 	return 0;
 }
 
-long read_control(char* control, char* fileName){
-	long read_size;
+int read_control(char* control, char* fileName){
+	int read_size;
 	if((read_size = llread(app.fileDescriptor, control)) < 0){
 			printf("--Error reading--\n");
 			exit(-1);
 	}
 
-	if(control[0] != C_START || control[0] != C_END){
-		return -1;
+	if(control[0] != C_START && control[0] != C_END){
+		printf("Invalid control\n");
+		exit(-1);
 	}
 
-	long file_size = 0;
+	int file_size = 0;
 	char size[4];
 	bzero(size, 4);
 	if(control[1] == FILE_SIZE){
 		int block_size = control[2];
 		int j = block_size - 1;
 		for(int i = 0; i < block_size; i++){
-			file_size += (control[i+2] << (j * 8)) & 0xff;
+			int part = ((unsigned char)(control[i+3]) << (j * 8));
+			file_size |= part;
 			j--;
 		}
 
 		int name_size = control[block_size + 4];
 		for(int i = 0; i < name_size; i++){
-			fileName[i] = control[i + block_size + 4];
+			fileName[i] = control[i + block_size + 5];
 		}
 	} else if(control[1] == FILE_NAME){
 		int name_size = control[2];
@@ -253,7 +275,7 @@ long read_control(char* control, char* fileName){
 		int block_size = control[name_size + 4];
 		int j = block_size - 1;
 		for(int i = 0; i < block_size; i++){
-			file_size += (control[name_size + i + 4] << (j * 8)) & 0xff;
+			file_size |= ((unsigned char)(control[name_size + i + 5]) << (j * 8));
 			j--;
 		}
 	}
@@ -294,16 +316,17 @@ int main(int argc, char **argv) {
 
 		int file_size = read_control(control, file_name);
 
-		// char file_buffer = (char*)malloc(sizeof(char) * file_size);
+		char* file_buffer = (char*)malloc(sizeof(char)*file_size);
 		
-		long curr_index = 0;
+		int curr_index = 0;
 
 		int control_found = 0;
+
 
 		while(control_found == 0){
 			if((read_size = llread(app.fileDescriptor, buffer)) < 0){
 				printf("--Error reading--\n");
-				// free(file_buffer);
+				free(file_buffer);
 				exit(-1);
 			}
 
@@ -313,26 +336,22 @@ int main(int argc, char **argv) {
 				break;
 			} 
 
-			long packet_size = (unsigned char)(buffer[2]) * 256 + (unsigned char)(buffer[3]);
+			int packet_size = (unsigned char)(buffer[2]) * 256 + (unsigned char)(buffer[3]);
 			printf("PACKET SIZE: %ld\n", packet_size);
 
-			char file_buffer[packet_size];
 
 			for(int i = 4; i < packet_size + 4; i++){
-				file_buffer[i - 4] = buffer[i];
+				file_buffer[curr_index + i - 4] = buffer[i];
 			}
 
 			//printf("FILE DATA: %s\n", file_buffer);
 
 			curr_index += packet_size;
-
-			
-			writeFileBytes(file_name, read_size - 4, file_buffer, curr_index);
-			// writeFileBytes("teste2.txt", read_size - 4, file_buffer, curr_index);
 		}
-		printf("HELLO\n");
+		writeFileBytes(file_name, file_size, file_buffer);
 
-		// free(file_buffer);
+
+		free(file_buffer);
 
 
 		if(llclose(app.fileDescriptor) < 0){
@@ -362,22 +381,7 @@ int main(int argc, char **argv) {
 			//printf("FILE DATA: %s\n", file);
 			
 			curr_index += size_to_send;
-			// char packet_data[150];
-			// if(size_remaining >= 150){
-			// 	for(int i = 0; i < 150; ++i){
-			// 		packet_data[i] = file[curr_index + 0];
-			// 	}
-			// 	curr_index += 150;
-			// 	size_remaining -= 150;
-			// 	size_to_send = 150;
-			// } else {
-			// 	for(int i = 0; i < size_remaining; ++i){
-			// 		packet_data[i] = file[curr_index + 0];
-			// 	}
-			// 	curr_index += size_remaining;
-			// 	size_to_send = size_remaining;
-			// 	size_remaining = 0;
-			// }
+			
 			size_remaining -= size_to_send;
 
 			char packet[size_to_send + 4];

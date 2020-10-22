@@ -28,6 +28,9 @@ static int disc_tries = 0;
 static int alarm_flag = 0;
 static int retry_flag = 0;
 
+unsigned int timeout;
+unsigned int numTransmissions;
+
 int read_frame_reader(int fd, unsigned char *data, frame_type frame_type){
 	unsigned char buf[1024];
 	unsigned char result;
@@ -132,10 +135,10 @@ int read_info(int fd, char* buffer){
 	if((read_size = read_frame_reader(fd, buffer, COMMAND)) < 0){
 		return -1;
 	}
-	if(buffer[4] == FLAG){
-		printf("Read strange packet. Expected info\n");
-		return -1;
-	}
+	//if(buffer[4] == FLAG){
+	//	printf("Read strange packet. Expected info\n");
+	//	return -1;
+	//}
 	return read_size;
 }
 

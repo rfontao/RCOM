@@ -14,41 +14,44 @@
 applicationLayer app;
 struct termios oldtio, newtio;
 
-#define MAX_CHUNK_SIZE 500
+#define MAX_CHUNK_SIZE 4000
 
-long readFileBytes(const char *name, char* result, long offset, long size_to_read){  //TODO: Check for errors
-    FILE *fl = fopen(name, "rb");  
-	if(fl == NULL){
+int openFile(const char *name, int mode){
+	if(mode == RECEIVER){
+		app.file = fopen(name, "wb");
+	} else if(mode == SENDER){
+		app.file = fopen(name, "rb");
+	} else {
+		printf("Invalid mode\n");
+		return -1;
+	} 
+	if(app.file == NULL){
 		printf("Failed to open file\n");
-		exit(-1);
+		return -1;
 	}
+	return 0;
+}
 
-	printf("OFFSET: %d\n", offset);
-	fseek(fl, offset, SEEK_SET);
-    long len = fread(result, 1, size_to_read, fl); 
-    fclose(fl);  
+long readFileBytes(char* result, long size_to_read){  //TODO: Check for errors
+
+	// printf("OFFSET: %d\n", offset);
+	// fseek(app.file, offset, SEEK_SET);
+    long len = fread(result, 1, size_to_read, app.file); 
     return len;  
 }
 
-long readFileInfo(const char *name){
-	FILE *fl = fopen(name, "rb");
-	fseek(fl, 0, SEEK_END);
-	long len = ftell(fl);
-	fclose(fl);
+long readFileInfo(){
+	fseek(app.file, 0, SEEK_END);
+	long len = ftell(app.file);
+	fseek(app.file, 0, SEEK_SET);
 	return len;
 }
 
-int writeFileBytes(const char *name, long size, char* data){  //TODO: Check for errors
-	printf("NAME %s\n", name);
-	FILE* fl = fopen(name, "wb");
-
-	if(fl == NULL){
-		printf("Couldnt open file for writing\n");
-		exit(-1);
+int writeFileBytes(char* data, long size){
+	if(fwrite(data, 1, size, app.file) < 0){
+		perror("Error writing to file\n");
+		return -1;
 	}
-
-    fwrite(data, 1, size, fl);
-	fclose(fl);
     return 0;  
 }
 
@@ -110,8 +113,8 @@ int assemble_control_packet(int type, char *filename, int fileSize, char* packet
 
 	packet[7] = FILE_NAME;
 
-	char ff[] = "pinguim2.gif"; //TODO : CAREFUL, HARDCODED
-	// char ff[] = "windoh2.webm";
+	// char ff[] = "pinguim2.gif"; //TODO : CAREFUL, HARDCODED
+	char ff[] = "windoh2.mp4";
 
 	packet[8] = strlen(ff);
 
@@ -311,22 +314,26 @@ int main(int argc, char **argv) {
 	if(app.status == RECEIVER){
 
 		char control[1024];
-		char buffer[1024];
+		char buffer[MAX_CHUNK_SIZE * 2];
 		int read_size;
 
 		int file_size = read_control(control, file_name);
 
-		char* file_buffer = (char*)malloc(sizeof(char)*file_size);
+		char file_buffer[MAX_CHUNK_SIZE];// = (char*)malloc(sizeof(char)*file_size);
 		
 		int curr_index = 0;
-
 		int control_found = 0;
 
+		if(openFile(file_name, app.status) < 0){
+			perror("Error opening file\n");
+			exit(-1);
+		}
 
 		while(control_found == 0){
 			if((read_size = llread(app.fileDescriptor, buffer)) < 0){
 				printf("--Error reading--\n");
-				free(file_buffer);
+				// free(file_buffer);
+				fclose(app.file);
 				exit(-1);
 			}
 
@@ -337,31 +344,35 @@ int main(int argc, char **argv) {
 			} 
 
 			int packet_size = (unsigned char)(buffer[2]) * 256 + (unsigned char)(buffer[3]);
-			printf("PACKET SIZE: %ld\n", packet_size);
+			// printf("PACKET SIZE: %d\n", packet_size);
 
 
 			for(int i = 4; i < packet_size + 4; i++){
-				file_buffer[curr_index + i - 4] = buffer[i];
+				file_buffer[i - 4] = buffer[i];
 			}
 
 			//printf("FILE DATA: %s\n", file_buffer);
 
 			curr_index += packet_size;
+			writeFileBytes(file_buffer, packet_size);
 		}
-		writeFileBytes(file_name, file_size, file_buffer);
 
-
-		free(file_buffer);
-
+		fclose(app.file);
+		// free(file_buffer);
 
 		if(llclose(app.fileDescriptor) < 0){
 			printf("Failed closing\n");
 			exit(-1);
 		}
 
-	} else {
+	} else if(app.status == SENDER) {
 
-		long file_size = readFileInfo(file_name);
+		if(openFile(file_name, app.status) < 0){
+			perror("Error opening file\n");
+			exit(-1);
+		}
+
+		long file_size = readFileInfo();
 		long curr_index = 0;
 		char file[MAX_CHUNK_SIZE];
 		//send_control(START, filename, fileSize);
@@ -373,9 +384,9 @@ int main(int argc, char **argv) {
 		while(curr_index < file_size){
 			
 			if(size_remaining < MAX_CHUNK_SIZE){
-				size_to_send = readFileBytes(file_name, file, curr_index, size_remaining);
+				size_to_send = readFileBytes(file, size_remaining);
 			} else {
-				size_to_send = readFileBytes(file_name, file, curr_index, MAX_CHUNK_SIZE);
+				size_to_send = readFileBytes(file, MAX_CHUNK_SIZE);
 			}
 
 			//printf("FILE DATA: %s\n", file);
@@ -386,10 +397,11 @@ int main(int argc, char **argv) {
 
 			char packet[size_to_send + 4];
 			int packet_size = assemble_data_packet(file, size_to_send, size_to_send, packet); //TODO: sequenceN
-			printf("PACKET SIZE %d\n", packet_size);
+			// printf("PACKET SIZE %d\n", packet_size);
 
 			if(llwrite(app.fileDescriptor, packet, packet_size) < 0){
 				printf("--Error writing--\n");
+				fclose(app.file);
 				exit(-1);
 			}
 		}
@@ -397,6 +409,8 @@ int main(int argc, char **argv) {
 		//ler dados do ficheiro e chamar send_data()
 		send_control(END_C, file_name, file_size);
 		printf("Sent Control\n");
+
+		fclose(app.file);
 
 		if(llclose(app.fileDescriptor) < 0){
 			printf("Failed closing\n");

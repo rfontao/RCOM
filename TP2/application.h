@@ -24,6 +24,7 @@ typedef struct
 {
     int fileDescriptor;
     int status; /*SENDER | RECEIVER*/
+    FILE* file;
 } applicationLayer;
 
 

@@ -24,6 +24,7 @@ static volatile int STOP = FALSE;
 #define MAX_FRAME_TRIES 3
 #define FRAME_TIMEOUT 3
 
+
 static int disc_tries = 0;
 static int alarm_flag = 0;
 static int retry_flag = 0;
@@ -31,9 +32,10 @@ static int retry_flag = 0;
 unsigned int timeout;
 unsigned int numTransmissions;
 
-int read_frame_reader(int fd, unsigned char *data, frame_type frame_type){
-	unsigned char buf[1024];
-	unsigned char result;
+int read_frame_reader(int fd, char **data, frame_type frame_type){
+	*data = (char*)malloc(sizeof(char) * INITIAL_ALLOC_SIZE);
+	long current_alloc_size = INITIAL_ALLOC_SIZE;
+	char result;
 	STATE st;
 	int stuffed = 0;
 	int i = 0;
@@ -42,6 +44,11 @@ int read_frame_reader(int fd, unsigned char *data, frame_type frame_type){
 	printf("Trying to read frame:\n");
 
 	while(STOP == FALSE) {
+
+		if(i == current_alloc_size - 2){
+			*data = (char*)realloc(*data, current_alloc_size * 2);
+			current_alloc_size *= 2;
+		}
 		read(fd, &result, 1);
 		if(retry_flag == 1){
 			return -1;
@@ -53,16 +60,16 @@ int read_frame_reader(int fd, unsigned char *data, frame_type frame_type){
 		}
 		if(stuffed) {
 			if(result == SEQ_1)
-				buf[i] = FLAG;
+				(*data)[i] = FLAG;
 			else if(result == SEQ_2)
-				buf[i] = ESC;
+				(*data)[i] = ESC;
 			else {
 				send_rej(fd, c);
 				printf("REJ\n");
 			}
 			stuffed = 0;
 		} else 
-			buf[i] = result;
+			(*data)[i] = result;
 		i++;
 
 		st = machine(result, RECEIVER_M, frame_type);
@@ -75,23 +82,23 @@ int read_frame_reader(int fd, unsigned char *data, frame_type frame_type){
 	STOP = FALSE;
 
 	if(st == STOP_ST){
-		for(int k = 0; k < 5; ++k){
-			data[k] = buf[k];
-		}
+		// for(int k = 0; k < 5; ++k){
+		// 	data[k] = buf[k];
+		// }
 
 		return 5; //TODO: Maybe change for the size of normal frame
 	}
 
-	printf("RECEIVED INFO %s : %d\n", buf, i);
+	printf("RECEIVED INFO %s : %d\n", *data, i);
 
 
 	int j = 5;
-	unsigned char bcc2_check = buf[j-1];
+	unsigned char bcc2_check = (*data)[j-1];
 
 	for(; j < i - 2; ++j) 
-        bcc2_check ^= buf[j];
+        bcc2_check ^= (*data)[j];
 
-	if(buf[i - 2] != bcc2_check) {
+	if((unsigned char)((*data)[i - 2]) != bcc2_check) {
 		send_rej(fd, c);
 	} else {
 		send_rr(fd, c);
@@ -99,38 +106,42 @@ int read_frame_reader(int fd, unsigned char *data, frame_type frame_type){
 
 	int k = 4;
 	for(; k < i - 2; ++k){
-		data[k - 4] = buf[k];
+		(*data)[k - 4] = (*data)[k];
 	}
+
+	// print_frame(*data, i);
 
 	return k - 4;
 }
 
 void read_set(int fd){
-	unsigned char frame[255];
+	char* frame;
 
 	while(1){
-		read_frame_reader(fd, frame, COMMAND);
+		read_frame_reader(fd, &frame, COMMAND);
 		if(frame[2] == C_SET){
 			printf("Received SET frame\n");
 			send_frame(fd, UA_RECEIVER);
 			break;
 		}
 	}
+	free(frame);
 }
 
 void read_disc(int fd){
-	unsigned char frame[255];
+	char* frame;
 
 	while(1){
-		read_frame_reader(fd, frame, COMMAND);
+		read_frame_reader(fd, &frame, COMMAND);
 		if(frame[2] == C_DISC){
 			printf("Received DISC frame\n");
 			break;
 		}
 	}
+	free(frame);
 }
 
-int read_info(int fd, char* buffer){
+int read_info(int fd, char** buffer){
 	int read_size;
 	if((read_size = read_frame_reader(fd, buffer, COMMAND)) < 0){
 		return -1;
@@ -158,10 +169,10 @@ int send_disc_receiver(int fd){
 	alarm(FRAME_TIMEOUT);
     send_frame(fd, DISC_RECEIVER);
 
-	unsigned char ua_frame[255];
+	char* ua_frame;
 
 	while(alarm_flag == 0){
-		read_frame_reader(fd, ua_frame, RESPONSE);
+		read_frame_reader(fd, &ua_frame, RESPONSE);
 		if(retry_flag == 1){
 			send_frame(fd, DISC_RECEIVER);
 			retry_flag = 0;
@@ -170,12 +181,14 @@ int send_disc_receiver(int fd){
 		if(ua_frame[2] == C_UA){
 			printf("Received UA\n");
 			alarm(0);
+			free(ua_frame);
 			return 0;
 		} else {
 			printf("Wasn't UA\n");
 		}
 	}
 	alarm_flag = 0;
+	free(ua_frame);
 	return -1;
 }
 

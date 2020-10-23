@@ -32,8 +32,8 @@ static int info_tries = 0;
 static int alarm_flag = 0;
 static int retry_flag = 0;
 
-unsigned char lastSent[1024];
-size_t last_sent_size = 0;
+static char* lastSent;
+static size_t last_sent_size = 0;
 
 void read_frame_writer(int fd, unsigned char* out, frame_type frame_type){
 
@@ -74,7 +74,7 @@ void send_info_frame(int fd, unsigned char* data, size_t size, int resend) {
 		return;
 	}
 
-    unsigned char frame[1024];
+    char* frame = (char*)malloc(sizeof(char) * (size + 6));
 
     frame[0] = FLAG;
     frame[1] = A_SENDER;
@@ -93,12 +93,13 @@ void send_info_frame(int fd, unsigned char* data, size_t size, int resend) {
     frame[i + 4] = calculate_bcc2(data, size);
     frame[i + 5] = FLAG;
 
-    unsigned char stuffed_frame[1024];
+    char* stuffed_frame = (char*)malloc(sizeof(char) * 2 * (size + 6));
 
     int frame_size = stuff_data(frame, i + 6, stuffed_frame);
 
     c++;
 
+	lastSent = (char*)realloc(lastSent, sizeof(char) * frame_size);
 	for(int k = 0; k < frame_size; k++){
 		lastSent[i] = stuffed_frame[i];
 	}
@@ -106,6 +107,8 @@ void send_info_frame(int fd, unsigned char* data, size_t size, int resend) {
 
     write_to_port(fd, stuffed_frame, frame_size);
     printf("Sent INFO frame : %s : %d\n", stuffed_frame, frame_size);
+	free(stuffed_frame);
+	free(frame);
 }
 
 void sigalarm_set_handler_writer(int sig){

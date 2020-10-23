@@ -12,7 +12,7 @@ void write_to_port(int fd, unsigned char* data, size_t s){
 
 void print_frame(unsigned char* frame, size_t s){
     for(int i = 0; i < s; i++){
-            printf(" %d ",frame[i]);
+            printf(" %x ",frame[i]);
         }
     printf("\n");
 }
@@ -94,7 +94,7 @@ unsigned char calculate_bcc2(unsigned char* data, size_t size) {
     return result;
 }
 
-int stuff_data(unsigned char* data, size_t size, unsigned char* stuffed) {
+int stuff_data(char* data, size_t size, char* stuffed) {
     int i = 1, j = 1;
     stuffed[0] = data[0];
 
@@ -148,7 +148,7 @@ void send_rej(int fd, unsigned char c) {
     rej[3] = A_SENDER ^ rej[2];
     rej[4] = FLAG;
 
-    printf("Sent RRJ: ");
+    printf("Sent REJ: ");
     print_frame(rej, 5);
 
     write_to_port(fd, rej, 5);

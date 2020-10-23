@@ -14,7 +14,7 @@
 applicationLayer app;
 struct termios oldtio, newtio;
 
-#define MAX_CHUNK_SIZE 4000
+#define MAX_CHUNK_SIZE 65000
 
 int openFile(const char *name, int mode){
 	if(mode == RECEIVER){
@@ -113,8 +113,8 @@ int assemble_control_packet(int type, char *filename, int fileSize, char* packet
 
 	packet[7] = FILE_NAME;
 
-	// char ff[] = "pinguim2.gif"; //TODO : CAREFUL, HARDCODED
-	char ff[] = "windoh2.mp4";
+	char ff[] = "pinguim2.gif"; //TODO : CAREFUL, HARDCODED
+	// char ff[] = "windoh2.mp4";
 
 	packet[8] = strlen(ff);
 
@@ -158,7 +158,7 @@ int llopen(char* port, int mode) {
     return fd;
 }
 
-int llread(int fd, char* buffer){
+int llread(int fd, char** buffer){
 	return read_info(fd, buffer);
 }
 
@@ -241,12 +241,16 @@ int close_port(){
 	return 0;
 }
 
-int read_control(char* control, char* fileName){
+int read_control(char** ctl, char* fileName){
 	int read_size;
-	if((read_size = llread(app.fileDescriptor, control)) < 0){
-			printf("--Error reading--\n");
-			exit(-1);
+	if((read_size = llread(app.fileDescriptor, ctl)) < 0){
+		printf("--Error reading--\n");
+		free(*ctl);
+		exit(-1);
 	}
+
+	char* control = *ctl;
+	
 
 	if(control[0] != C_START && control[0] != C_END){
 		printf("Invalid control\n");
@@ -313,11 +317,11 @@ int main(int argc, char **argv) {
 	
 	if(app.status == RECEIVER){
 
-		char control[1024];
-		char buffer[MAX_CHUNK_SIZE * 2];
+		char* control;
+		char* buffer;
 		int read_size;
 
-		int file_size = read_control(control, file_name);
+		int file_size = read_control(&control, file_name);
 
 		char file_buffer[MAX_CHUNK_SIZE];// = (char*)malloc(sizeof(char)*file_size);
 		
@@ -330,9 +334,10 @@ int main(int argc, char **argv) {
 		}
 
 		while(control_found == 0){
-			if((read_size = llread(app.fileDescriptor, buffer)) < 0){
+			if((read_size = llread(app.fileDescriptor, &buffer)) < 0){
 				printf("--Error reading--\n");
 				// free(file_buffer);
+				free(buffer);
 				fclose(app.file);
 				exit(-1);
 			}

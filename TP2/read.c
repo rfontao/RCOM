@@ -82,11 +82,7 @@ int read_frame_reader(int fd, char** data, frame_type frame_type){
 	STOP = FALSE;
 
 	if(st == STOP_ST){
-		// for(int k = 0; k < 5; ++k){
-		// 	data[k] = buf[k];
-		// }
-
-		return 5; //TODO: Maybe change for the size of normal frame
+		return 5; //size of the SET buffers
 	}
 
 	printf("RECEIVED INFO %s : %d\n", *data, i);

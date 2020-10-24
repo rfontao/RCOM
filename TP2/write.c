@@ -46,7 +46,7 @@ void read_frame_writer(int fd, char* out, frame_type frame_type){
 		read(fd, &result, 1);
 
 		if(alarm_flag == 1){
-			//TODO: Dar reset ao estado?
+			reset_state(SENDER_M);
 			alarm_flag = 0;
 			return;
 		}

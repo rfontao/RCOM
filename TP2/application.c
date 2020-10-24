@@ -33,7 +33,7 @@ int openFile(const char *name, int mode){
 	return 0;
 }
 
-long readFileBytes(char* result, long size_to_read){  //TODO: Check for errors
+long readFileBytes(char* result, long size_to_read){
 	long len;
 	if((len = fread(result, 1, size_to_read, app.file)) == 0){
 		perror("Failed to read from file\n");
@@ -423,9 +423,8 @@ int main(int argc, char **argv) {
 			
 			size_remaining -= size_to_send;
 
-			// char packet[size_to_send + 4];
 			char* packet = (char*)malloc(size_to_send + 4);
-			int packet_size = assemble_data_packet(file, size_to_send, sequenceN, packet); //TODO: sequenceN
+			int packet_size = assemble_data_packet(file, size_to_send, sequenceN, packet);
 			// printf("PACKET SIZE %d\n", packet_size);
 
 			if(llwrite(app.fileDescriptor, packet, packet_size) < 0){

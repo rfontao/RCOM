@@ -32,7 +32,7 @@ static int retry_flag = 0;
 unsigned int timeout;
 unsigned int numTransmissions;
 
-int read_frame_reader(int fd, char **data, frame_type frame_type){
+int read_frame_reader(int fd, char** data, frame_type frame_type){
 	*data = (char*)malloc(sizeof(char) * INITIAL_ALLOC_SIZE);
 	long current_alloc_size = INITIAL_ALLOC_SIZE;
 	char result;

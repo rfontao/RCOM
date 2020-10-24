@@ -319,21 +319,25 @@ int main(int argc, char **argv) {
 
 		if(openFile(file_name, app.status) < 0){
 			perror("Error opening file\n");
+			free(control);
 			exit(-1);
 		}
 
 		while(control_found == 0){
 			if((read_size = llread(app.fileDescriptor, &buffer)) < 0){
 				printf("--Error reading--\n");
+				free(control);
 				free(buffer);
 				fclose(app.file);
 				exit(-1);
 			}
 
+			//TODO CHECK BUFFER
 			if(buffer[0] == C_END){
 				control_found = 0;
+				free(buffer);
 				break;
-			} 
+			}
 
 			int packet_size = (unsigned char)(buffer[2]) * 256 + (unsigned char)(buffer[3]);
 			// printf("PACKET SIZE: %d\n", packet_size);
@@ -342,13 +346,14 @@ int main(int argc, char **argv) {
 			for(int i = 4; i < packet_size + 4; i++){
 				file_buffer[i - 4] = buffer[i];
 			}
-
+			free(buffer);
 			//printf("FILE DATA: %s\n", file_buffer);
 
 			curr_index += packet_size;
 			writeFileBytes(file_buffer, packet_size);
 		}
 
+		free(control);
 		fclose(app.file);
 
 		if(llclose(app.fileDescriptor) < 0){

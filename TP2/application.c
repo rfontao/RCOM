@@ -312,7 +312,7 @@ int main(int argc, char **argv) {
 		// int file_size = read_control(&control, file_name);
 		read_control(&control, file_name);
 
-		char file_buffer[MAX_CHUNK_SIZE];// = (char*)malloc(sizeof(char)*file_size);
+		char file_buffer[MAX_CHUNK_SIZE];
 		
 		int curr_index = 0;
 		int control_found = 0;
@@ -389,15 +389,18 @@ int main(int argc, char **argv) {
 			
 			size_remaining -= size_to_send;
 
-			char packet[size_to_send + 4];
+			// char packet[size_to_send + 4];
+			char* packet = (char*)malloc(size_to_send + 4);
 			int packet_size = assemble_data_packet(file, size_to_send, size_to_send, packet); //TODO: sequenceN
 			// printf("PACKET SIZE %d\n", packet_size);
 
 			if(llwrite(app.fileDescriptor, packet, packet_size) < 0){
 				printf("--Error writing--\n");
+				free(packet);
 				fclose(app.file);
 				exit(-1);
 			}
+			free(packet);
 		}
 
 		//ler dados do ficheiro e chamar send_data()

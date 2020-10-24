@@ -33,11 +33,12 @@ int openFile(const char *name, int mode){
 }
 
 long readFileBytes(char* result, long size_to_read){  //TODO: Check for errors
-
-	// printf("OFFSET: %d\n", offset);
-	// fseek(app.file, offset, SEEK_SET);
-    long len = fread(result, 1, size_to_read, app.file); 
-    return len;  
+	long len;
+	if((len = fread(result, 1, size_to_read, app.file)) == 0){
+		perror("Failed to read from file\n");
+		return -1;
+	} 
+    return len;
 }
 
 long readFileInfo(){
@@ -324,13 +325,11 @@ int main(int argc, char **argv) {
 		while(control_found == 0){
 			if((read_size = llread(app.fileDescriptor, &buffer)) < 0){
 				printf("--Error reading--\n");
-				// free(file_buffer);
 				free(buffer);
 				fclose(app.file);
 				exit(-1);
 			}
 
-			//TODO CHANGE LATER
 			if(buffer[0] == C_END){
 				control_found = 0;
 				break;
@@ -351,7 +350,6 @@ int main(int argc, char **argv) {
 		}
 
 		fclose(app.file);
-		// free(file_buffer);
 
 		if(llclose(app.fileDescriptor) < 0){
 			printf("Failed closing\n");
@@ -366,25 +364,28 @@ int main(int argc, char **argv) {
 		}
 
 		long file_size = readFileInfo();
-		long curr_index = 0;
 		char file[MAX_CHUNK_SIZE];
-		//send_control(START, filename, fileSize);
+
 		send_control(START_C, file_name, file_size);
 
 		int size_remaining = file_size;
 		int size_to_send;
 
-		while(curr_index < file_size){
+		while(size_remaining > 0){
 			
 			if(size_remaining < MAX_CHUNK_SIZE){
-				size_to_send = readFileBytes(file, size_remaining);
+				if((size_to_send = readFileBytes(file, size_remaining)) < 0){
+					perror("Error reading file\n");
+					fclose(app.file);
+					exit(-1);
+				}
 			} else {
-				size_to_send = readFileBytes(file, MAX_CHUNK_SIZE);
+				if((size_to_send = readFileBytes(file, MAX_CHUNK_SIZE)) < 0){
+					perror("Error reading file\n");
+					fclose(app.file);
+					exit(-1);
+				}
 			}
-
-			//printf("FILE DATA: %s\n", file);
-			
-			curr_index += size_to_send;
 			
 			size_remaining -= size_to_send;
 

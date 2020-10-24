@@ -35,10 +35,9 @@ static int retry_flag = 0;
 static char* lastSent;
 static size_t last_sent_size = 0;
 
-void read_frame_writer(int fd, unsigned char* out, frame_type frame_type){
+void read_frame_writer(int fd, char* out, frame_type frame_type){
 
-	printf("Trying to read frame:\n");
-	//alarm(FRAME_TIMEOUT);
+	printf("--Trying to read frame--\n");
 
 	unsigned char result;
 	STATE st;
@@ -62,10 +61,10 @@ void read_frame_writer(int fd, unsigned char* out, frame_type frame_type){
 	}
 	STOP = FALSE;
 
-	printf("Received frame: ");
+	printf("--Received frame--\n");
 }
 
-void send_info_frame(int fd, unsigned char* data, size_t size, int resend) {
+void send_info_frame(int fd, char* data, size_t size, int resend) {
 
     static int c = 0;
 
@@ -99,7 +98,7 @@ void send_info_frame(int fd, unsigned char* data, size_t size, int resend) {
 
     c++;
 
-	lastSent = (char*)realloc(lastSent, sizeof(char) * frame_size);
+	lastSent = (char*)malloc(sizeof(char) * frame_size);
 	for(int k = 0; k < frame_size; k++){
 		lastSent[i] = stuffed_frame[i];
 	}
@@ -183,7 +182,7 @@ int send_set(int fd){
 
 	alarm(FRAME_TIMEOUT);
 
-	unsigned char ua_frame[255];
+	char ua_frame[255];
 	//First send
 	send_frame(fd, SET);
 
@@ -207,7 +206,7 @@ int send_set(int fd){
 }
 
 int send_disc_sender(int fd){
-	unsigned char disc_frame[255];
+	char disc_frame[255];
 
     disc_alarm_writer();
 
@@ -240,7 +239,7 @@ int send_info(int fd, char* data, int length){
 
 	alarm(FRAME_TIMEOUT);
 
-	unsigned char response[255];
+	char response[255];
 	int resend = FALSE;
 	while(alarm_flag == 0){
 		if(retry_flag){
@@ -256,17 +255,18 @@ int send_info(int fd, char* data, int length){
 
 		print_frame(response, 5);
 
-		if(response[2] == C_RR_1 || response[2] == C_RR_2) {
+		if((unsigned char)(response[2]) == C_RR_1 || (unsigned char)(response[2]) == C_RR_2) {
 			printf("RR received\n");
 			resend = FALSE;
 			alarm(0);
+			free(lastSent);
 			return length;
-		} else if(response[2] == C_REJ_1 || response[2] == C_REJ_2) {
+		} else if((unsigned char)(response[2]) == C_REJ_1 || (unsigned char)(response[2]) == C_REJ_2) {
 			printf("REJ received\n");
 			resend = TRUE;
 		}
 	}
-
+	free(lastSent);
 	alarm_flag = 1;
 	return -1;
 }

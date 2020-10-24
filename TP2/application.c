@@ -69,7 +69,7 @@ int writeFileBytes(char* data, long size){
 // }
 
 int send_control(int type, char *filename, int fileSize) {
-	unsigned char packet[strlen(filename) + 9]; //control+type,length,filename+type,lenght,fileSize
+	char packet[strlen(filename) + 9]; //control+type,length,filename+type,lenght,fileSize
 
 	int size = assemble_control_packet(type, filename, fileSize, packet);
 
@@ -95,7 +95,7 @@ int assemble_data_packet(char* data, int length, int sequenceN, char* packet) {
 	return i + 4;
 }
 
-int assemble_control_packet(int type, char *filename, int fileSize, char* packet) {
+int assemble_control_packet(int type, char* filename, int fileSize, char* packet) {
 
 	if(type == START_C) 
 		packet[0] =	C_START;
@@ -321,7 +321,8 @@ int main(int argc, char **argv) {
 		char* buffer;
 		int read_size;
 
-		int file_size = read_control(&control, file_name);
+		// int file_size = read_control(&control, file_name);
+		read_control(&control, file_name);
 
 		char file_buffer[MAX_CHUNK_SIZE];// = (char*)malloc(sizeof(char)*file_size);
 		

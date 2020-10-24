@@ -4,9 +4,9 @@
 #include <stdlib.h>
 #include "state_machine.h"
 
-void read_frame_writer(int fd, unsigned char* out, frame_type frame_type);
+void read_frame_writer(int fd, char* out, frame_type frame_type);
 
-void send_info_frame(int fd, unsigned char* data, size_t size, int resend);
+void send_info_frame(int fd, char* data, size_t size, int resend);
 
 void sigalarm_set_handler_writer(int sig);
 

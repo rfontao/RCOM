@@ -10,6 +10,7 @@
 #include "message_macros.h"
 #include "read.h"
 #include "write.h"
+#include "common.h"
 
 applicationLayer app;
 struct termios oldtio, newtio;
@@ -229,16 +230,14 @@ int close_port(){
 	return 0;
 }
 
-int read_control(char** ctl, char* fileName){
-	int read_size;
-	if((read_size = llread(app.fileDescriptor, ctl)) < 0){
+int read_control(char** ctl, char* fileName, int* control_size){
+	if((*control_size = llread(app.fileDescriptor, ctl)) < 0){
 		printf("--Error reading--\n");
 		free(*ctl);
 		exit(-1);
 	}
 
 	char* control = *ctl;
-	
 
 	if(control[0] != C_START && control[0] != C_END){
 		printf("Invalid control\n");
@@ -278,6 +277,19 @@ int read_control(char** ctl, char* fileName){
 	return file_size;
 }
 
+int check_control(char* control, char* buffer, int size){
+	// print_frame(control, size);
+	// print_frame(buffer, size);
+
+	for(int i = 1; i < size; i++){
+		if(control[i] != buffer[i]){
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 int main(int argc, char **argv) {
 
     if ((argc < 4) ||
@@ -296,7 +308,7 @@ int main(int argc, char **argv) {
         app.status = SENDER;
 
 	if((app.fileDescriptor = llopen(argv[3], app.status)) < 0){
-		printf("GG\n");
+		printf("Failed to open file\n");
 		exit(-1);
 	}
 
@@ -308,9 +320,10 @@ int main(int argc, char **argv) {
 		char* control;
 		char* buffer;
 		int read_size;
+		int control_size;
 
 		// int file_size = read_control(&control, file_name);
-		read_control(&control, file_name);
+		read_control(&control, file_name, &control_size);
 
 		char file_buffer[MAX_CHUNK_SIZE];
 		
@@ -320,7 +333,6 @@ int main(int argc, char **argv) {
 			exit(-1);
 		}
 
-		// int curr_index = 0;
 		int control_found = 0;
 		int sequenceN = 0;
 
@@ -333,8 +345,15 @@ int main(int argc, char **argv) {
 				exit(-1);
 			}
 
-			//TODO CHECK BUFFER
 			if(buffer[0] == C_END){
+				//End buffer is different from start buffer
+				if(check_control(control, buffer, control_size) < 0){
+					printf("--End buffer is different from start buffer--\n");
+					free(control);
+					free(buffer);
+					fclose(app.file);
+					exit(-1);
+				}
 				control_found = 0;
 				free(buffer);
 				break;

@@ -12,7 +12,7 @@ void write_to_port(int fd, char* data, size_t s){
 
 void print_frame(char* frame, size_t s){
     for(int i = 0; i < s; i++){
-            printf(" %x ",frame[i]);
+            printf(" %x ", (unsigned char)(frame[i]));
         }
     printf("\n");
 }

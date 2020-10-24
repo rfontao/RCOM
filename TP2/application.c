@@ -14,7 +14,7 @@
 applicationLayer app;
 struct termios oldtio, newtio;
 
-#define MAX_CHUNK_SIZE 65000
+#define MAX_CHUNK_SIZE 400
 
 int openFile(const char *name, int mode){
 	if(mode == RECEIVER){
@@ -55,21 +55,8 @@ int writeFileBytes(char* data, long size){
     return 0;  
 }
 
-// int send_data(unsigned char* data, int length) {
-// 	unsigned char packet[length + 4];
-
-// 	int size = assemble_data_packet(data, length, packet);
-
-// 	if(llwrite(app.fileDescriptor, packet, size) == -1) {
-// 		printf("Error sending data packet");
-// 		return -1;
-// 	}
-
-// 	return 0;
-// }
-
 int send_control(int type, char *filename, int fileSize) {
-	char packet[strlen(filename) + 9]; //control+type,length,filename+type,lenght,fileSize
+	char packet[strlen(filename) + 9];
 
 	int size = assemble_control_packet(type, filename, fileSize, packet);
 

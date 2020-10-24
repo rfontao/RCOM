@@ -314,14 +314,15 @@ int main(int argc, char **argv) {
 
 		char file_buffer[MAX_CHUNK_SIZE];
 		
-		int curr_index = 0;
-		int control_found = 0;
-
 		if(openFile(file_name, app.status) < 0){
 			perror("Error opening file\n");
 			free(control);
 			exit(-1);
 		}
+
+		// int curr_index = 0;
+		int control_found = 0;
+		int sequenceN = 0;
 
 		while(control_found == 0){
 			if((read_size = llread(app.fileDescriptor, &buffer)) < 0){
@@ -338,19 +339,27 @@ int main(int argc, char **argv) {
 				free(buffer);
 				break;
 			}
+			
+			//Check for sequence number
+			if((unsigned char)(buffer[1]) != sequenceN){
+				printf("--Received packet with wrong sequence number. Aborting--\n");
+				free(control);
+				free(buffer);
+				fclose(app.file);
+				exit(-1);
+			}
 
 			int packet_size = (unsigned char)(buffer[2]) * 256 + (unsigned char)(buffer[3]);
 			// printf("PACKET SIZE: %d\n", packet_size);
-
 
 			for(int i = 4; i < packet_size + 4; i++){
 				file_buffer[i - 4] = buffer[i];
 			}
 			free(buffer);
 			//printf("FILE DATA: %s\n", file_buffer);
-
-			curr_index += packet_size;
 			writeFileBytes(file_buffer, packet_size);
+
+			sequenceN = (sequenceN + 1) % 255;
 		}
 
 		free(control);
@@ -375,6 +384,7 @@ int main(int argc, char **argv) {
 
 		int size_remaining = file_size;
 		int size_to_send;
+		int sequenceN = 0;
 
 		while(size_remaining > 0){
 			
@@ -396,7 +406,7 @@ int main(int argc, char **argv) {
 
 			// char packet[size_to_send + 4];
 			char* packet = (char*)malloc(size_to_send + 4);
-			int packet_size = assemble_data_packet(file, size_to_send, size_to_send, packet); //TODO: sequenceN
+			int packet_size = assemble_data_packet(file, size_to_send, sequenceN, packet); //TODO: sequenceN
 			// printf("PACKET SIZE %d\n", packet_size);
 
 			if(llwrite(app.fileDescriptor, packet, packet_size) < 0){
@@ -405,6 +415,8 @@ int main(int argc, char **argv) {
 				fclose(app.file);
 				exit(-1);
 			}
+
+			sequenceN = (sequenceN + 1) % 255;
 			free(packet);
 		}
 

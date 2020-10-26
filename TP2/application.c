@@ -43,10 +43,13 @@ long readFileBytes(char* result, long size_to_read){
 }
 
 long readFileInfo(){
-	fseek(app.file, 0, SEEK_END);
-	long len = ftell(app.file);
-	fseek(app.file, 0, SEEK_SET);
-	return len;
+	struct stat buf;
+	int fd = fileno(app.file);
+	fstat(fd, &buf);
+	// fseek(app.file, 0, SEEK_END);
+	// long len = ftell(app.file);
+	// fseek(app.file, 0, SEEK_SET);
+	return buf.st_size;
 }
 
 int writeFileBytes(char* data, long size){

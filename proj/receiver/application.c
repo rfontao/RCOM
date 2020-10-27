@@ -15,7 +15,7 @@
 applicationLayer app;
 struct termios oldtio, newtio;
 
-#define MAX_CHUNK_SIZE 400
+#define MAX_CHUNK_SIZE 5000
 
 int openFile(const char *name, int mode){
 	if(mode == RECEIVER){
@@ -43,10 +43,13 @@ long readFileBytes(char* result, long size_to_read){
 }
 
 long readFileInfo(){
-	fseek(app.file, 0, SEEK_END);
-	long len = ftell(app.file);
-	fseek(app.file, 0, SEEK_SET);
-	return len;
+	struct stat buf;
+	int fd = fileno(app.file);
+	fstat(fd, &buf);
+	// fseek(app.file, 0, SEEK_END);
+	// long len = ftell(app.file);
+	// fseek(app.file, 0, SEEK_SET);
+	return buf.st_size;
 }
 
 int writeFileBytes(char* data, long size){
@@ -57,7 +60,7 @@ int writeFileBytes(char* data, long size){
     return 0;  
 }
 
-int send_control(int type, char *filename, int fileSize) {
+int send_control(int type, char *filename, long fileSize) {
 	char packet[strlen(filename) + 9];
 
 	int size = assemble_control_packet(type, filename, fileSize, packet);
@@ -84,7 +87,7 @@ int assemble_data_packet(char* data, int length, int sequenceN, char* packet) {
 	return i + 4;
 }
 
-int assemble_control_packet(int type, char* filename, int fileSize, char* packet) {
+int assemble_control_packet(int type, char* filename, long fileSize, char* packet) {
 
 	if(type == START_C) 
 		packet[0] =	C_START;
@@ -94,18 +97,17 @@ int assemble_control_packet(int type, char* filename, int fileSize, char* packet
 	packet[1] = FILE_SIZE;
 	packet[2] = sizeof(fileSize);
 
-	//TODO : improve 
-	packet[3] = (fileSize >> 24) & 0xff;
-	packet[4] = (fileSize >> 16) & 0xff;
-	packet[5] = (fileSize >> 8) & 0xff;
-	packet[6] = fileSize & 0xff;
+	int k = 3;
+	for(; k < sizeof(fileSize); k++) {
+		packet[k] = (fileSize >> ((k-3)*8)) & 0xff;
+	}
 
-	packet[7] = FILE_NAME;
-	packet[8] = strlen(filename);
+	packet[k++] = FILE_NAME;
+	packet[k++] = strlen(filename);
 
 	int i = 0;
 	for(; i < strlen(filename); ++i) {
-		packet[9 + i] = filename[i];
+		packet[k + i] = filename[i];
 	}
 
 
@@ -125,7 +127,7 @@ int assemble_control_packet(int type, char* filename, int fileSize, char* packet
 	// packet[i + 7] = (fileSize >> 8) & 0xff;
 	// packet[i + 8] = fileSize & 0xff;
 
-	return 9 + i;
+	return k + i;
 }
 
 int llopen(char* port, int mode) {
@@ -236,12 +238,15 @@ int read_control(char** ctl, char* fileName, int* control_size){
 
 	char* control = *ctl;
 
+	printf("CONTROLLL\n");
+	print_frame(control, *control_size);
+
 	if(control[0] != C_START && control[0] != C_END){
 		printf("Invalid control\n");
 		exit(-1);
 	}
 
-	int file_size = 0;
+	long file_size = 0;
 	char size[4];
 	bzero(size, 4);
 	if(control[1] == FILE_SIZE){

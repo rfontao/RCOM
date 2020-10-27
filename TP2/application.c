@@ -46,9 +46,6 @@ long readFileInfo(){
 	struct stat buf;
 	int fd = fileno(app.file);
 	fstat(fd, &buf);
-	// fseek(app.file, 0, SEEK_END);
-	// long len = ftell(app.file);
-	// fseek(app.file, 0, SEEK_SET);
 	return buf.st_size;
 }
 
@@ -98,8 +95,10 @@ int assemble_control_packet(int type, char* filename, long fileSize, char* packe
 	packet[2] = sizeof(fileSize);
 
 	int k = 3;
-	for(; k < sizeof(fileSize); k++) {
-		packet[k] = (fileSize >> ((k-3)*8)) & 0xff;
+	int j = sizeof(fileSize) - 1;
+	for(; k < sizeof(fileSize) + 3; k++) {
+		packet[k] = (fileSize >> (j*8)) & 0xff;
+		j--;
 	}
 
 	packet[k++] = FILE_NAME;

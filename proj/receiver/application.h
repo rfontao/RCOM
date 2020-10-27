@@ -35,10 +35,10 @@ int llwrite(int fd, char* buffer, int length);
 int llread(int fd, char** buffer);
 int llclose(int fd);
 
-int assemble_control_packet(int type, char *filename, int fileSize, char* packet);
+int assemble_control_packet(int type, char *filename, long fileSize, char* packet);
 int assemble_data_packet(char* data, int length, int sequenceN, char* packet);
 
-int send_control(int type, char *filename, int fileSize);
+int send_control(int type, char *filename, long fileSize);
 int read_control(char** ctl, char* fileName, int* control_size);
 int check_control(char* control, char* buffer, int size);
 

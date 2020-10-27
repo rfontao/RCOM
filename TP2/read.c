@@ -75,7 +75,7 @@ int read_frame_reader(int fd, char** data, frame_type frame_type){
 		i++;
 
 		st = machine(result, RECEIVER_M, frame_type);
-		
+
 		if(st == STOP_ST || st == STOP_INFO) {
 			STOP = TRUE;
 		} else if(st == C_RCV) {
@@ -147,7 +147,6 @@ int read_info(int fd, char** buffer){
 	do {
 		if((read_size = read_frame_reader(fd, buffer, COMMAND)) == -1)
 			return -1;
-		printf("LOOP\n");
 	} while(read_size == -2);
 	return read_size;
 }

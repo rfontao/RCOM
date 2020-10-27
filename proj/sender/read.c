@@ -49,6 +49,7 @@ int read_frame_reader(int fd, char** data, frame_type frame_type){
 			*data = (char*)realloc(*data, current_alloc_size * 2);
 			current_alloc_size *= 2;
 		}
+
 		read(fd, &result, 1);
 		if(retry_flag == 1){
 			return -1;
@@ -66,6 +67,7 @@ int read_frame_reader(int fd, char** data, frame_type frame_type){
 			else {
 				send_rej(fd, c);
 				printf("REJ\n");
+				return -2;
 			}
 			stuffed = 0;
 		} else 
@@ -73,6 +75,7 @@ int read_frame_reader(int fd, char** data, frame_type frame_type){
 		i++;
 
 		st = machine(result, RECEIVER_M, frame_type);
+		
 		if(st == STOP_ST || st == STOP_INFO) {
 			STOP = TRUE;
 		} else if(st == C_RCV) {
@@ -96,6 +99,7 @@ int read_frame_reader(int fd, char** data, frame_type frame_type){
 
 	if((unsigned char)((*data)[i - 2]) != bcc2_check) {
 		send_rej(fd, c);
+		return -2;
 	} else {
 		send_rr(fd, c);
 	}
@@ -139,13 +143,12 @@ void read_disc(int fd){
 
 int read_info(int fd, char** buffer){
 	int read_size;
-	if((read_size = read_frame_reader(fd, buffer, COMMAND)) < 0){
-		return -1;
-	}
-	//if(buffer[4] == FLAG){
-	//	printf("Read strange packet. Expected info\n");
-	//	return -1;
-	//}
+
+	do {
+		if((read_size = read_frame_reader(fd, buffer, COMMAND)) == -1)
+			return -1;
+		printf("LOOP\n");
+	} while(read_size == -2);
 	return read_size;
 }
 

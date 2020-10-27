@@ -47,7 +47,6 @@ void read_frame_writer(int fd, char* out, frame_type frame_type){
 
 		if(alarm_flag == 1){
 			reset_state(SENDER_M);
-			alarm_flag = 0;
 			return;
 		}
 		if(retry_flag == 1){
@@ -100,7 +99,7 @@ void send_info_frame(int fd, char* data, size_t size, int resend) {
 
 	lastSent = (char*)malloc(sizeof(char) * frame_size);
 	for(int k = 0; k < frame_size; k++){
-		lastSent[i] = stuffed_frame[i];
+		lastSent[k] = stuffed_frame[k];
 	}
 	last_sent_size = frame_size;
 
@@ -234,6 +233,7 @@ int send_disc_sender(int fd){
 }
 
 int send_info(int fd, char* data, int length){
+	
 
 	info_alarm();
 
@@ -249,7 +249,8 @@ int send_info(int fd, char* data, int length){
 			send_info_frame(fd, data, length, resend);
 		}
 		read_frame_writer(fd, response, RESPONSE);
-		if(retry_flag == 1){
+
+		if(retry_flag == 1 || alarm_flag == 1){
 			continue;
 		}
 

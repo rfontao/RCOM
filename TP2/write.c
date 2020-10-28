@@ -194,6 +194,7 @@ int send_set(int fd){
 		}
 		if(ua_frame[2] == C_UA){
 			printf("Received UA\n");
+			set_tries = 0;
 			alarm(0);
 			return 0;
 		} else {
@@ -221,6 +222,7 @@ int send_disc_sender(int fd){
 		}
 		if(disc_frame[2] == C_DISC){
 			printf("Received DISC\n");
+			disc_tries = 0;
 			alarm(0);
 			send_frame(fd, UA_SENDER);
 			return 0;
@@ -234,6 +236,7 @@ int send_disc_sender(int fd){
 
 int send_info(int fd, char* data, int length){
 	
+	info_tries = 0;
 
 	info_alarm();
 

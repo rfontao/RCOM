@@ -57,14 +57,20 @@ int writeFileBytes(char* data, long size){
 }
 
 int send_control(int type, char *filename, long fileSize) {
-	char packet[strlen(filename) + 9];
+	char packet[256];
 
 	int size = assemble_control_packet(type, filename, fileSize, packet);
+
+	if(size > MAX_PACKET_SIZE) {
+		printf("Control size cannot be larger than maximum packet size\n");
+		return -1;
+	}
 
 	if(llwrite(app.fileDescriptor, packet, size) == -1) {
 		printf("Error sending control packet\n");
 		return -1;
 	}
+
 	return 0;
 }
 
@@ -298,8 +304,9 @@ int read_control(char* ctl, char* fileName, int* control_size){
 }
 
 int check_control(char* control, char* buffer, int size){
-	// print_frame(control, size);
-	// print_frame(buffer, size);
+	//print_frame(control, size);
+	//print_frame(buffer, size);
+
 
 	for(int i = 1; i < size; i++){
 		if(control[i] != buffer[i]){
@@ -403,7 +410,7 @@ int main(int argc, char **argv) {
 			if(buffer[0] == C_END){
 				//End buffer is different from start buffer
 				if(check_control(control, buffer, control_size) < 0){
-					printf("--End buffer is different from start buffer--\n");
+					printf("--End control packet is different from start control packet--\n");
 					fclose(app.file);
 					exit(-1);
 				}
@@ -447,7 +454,11 @@ int main(int argc, char **argv) {
 		long file_size = readFileInfo();
 		char file[MAX_CHUNK_SIZE];
 
-		send_control(START_C, file_name, file_size);
+		if(send_control(START_C, file_name, file_size) < 0) {
+			printf("Error sending control packet\n");
+			fclose(app.file);
+			exit(-1);
+		}
 
 		int size_remaining = file_size;
 		int size_to_send;

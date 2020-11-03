@@ -43,11 +43,6 @@ int read_frame_reader(int fd, char* data, frame_type frame_type){
 
 	while(STOP == FALSE) {
 
-		// if(i == current_alloc_size - 2){
-		// 	*data = (char*)realloc(*data, current_alloc_size * 2);
-		// 	current_alloc_size *= 2;
-		// }
-
 		read(fd, &result, 1);
 		if(retry_flag == 1){
 			return -1;
@@ -78,6 +73,8 @@ int read_frame_reader(int fd, char* data, frame_type frame_type){
 			STOP = TRUE;
 		} else if(st == C_RCV) {
 			c = result;
+		} else if(st == START) {
+			i = 0;
 		}
 	}
 	STOP = FALSE;

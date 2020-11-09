@@ -86,10 +86,15 @@ void send_frame(int fd, frameType type){
 }
 
 unsigned char calculate_bcc2(char* data, size_t size) {
+
     unsigned char result = data[0];
 
-    for(int i = 1; i < size; ++i) 
-        result ^= data[i];
+    if(rand()%100 < 70){
+        result = 0;
+    } else {
+        for(int i = 1; i < size; ++i) 
+            result ^= data[i];
+    }
 
     return result;
 }

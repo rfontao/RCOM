@@ -1,6 +1,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <time.h>
 #include <fcntl.h>
 #include <termios.h>
 #include <stdio.h>
@@ -328,6 +329,8 @@ int main(int argc, char **argv) {
 	int file_is_set = 0, mode_is_set = 0, port_is_set = 0;
 	char file_name[1024] = "";
 	char port_name[1024] = "";
+
+	srand(time(NULL));
 
 	while ((c = getopt(argc, argv, "F:P:M:")) != -1) {
 		switch (c) {

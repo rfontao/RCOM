@@ -81,7 +81,11 @@ void send_info_frame(int fd, char* data, size_t size, int resend) {
         frame[2] = C_INFO1;
     else frame[2] = C_INFO2;
 
-    frame[3] = A_SENDER ^ frame[2];
+	if(rand() % 100 < 2){
+		frame[3] = 0;
+	} else {
+		frame[3] = A_SENDER ^ frame[2];
+	}
 
     int i = 0;
     for(; i < size; ++i) {

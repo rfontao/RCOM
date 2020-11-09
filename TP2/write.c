@@ -37,7 +37,7 @@ static size_t last_sent_size = 0;
 
 void read_frame_writer(int fd, char* out, frame_type frame_type){
 
-	printf("--Trying to read frame--\n");
+	// printf("--Trying to read frame--\n");
 
 	unsigned char result;
 	STATE st;
@@ -60,7 +60,7 @@ void read_frame_writer(int fd, char* out, frame_type frame_type){
 	}
 	STOP = FALSE;
 
-	printf("--Received frame--\n");
+	// printf("--Received frame--\n");
 }
 
 void send_info_frame(int fd, char* data, size_t size, int resend) {
@@ -104,14 +104,14 @@ void send_info_frame(int fd, char* data, size_t size, int resend) {
 	last_sent_size = frame_size;
 
     write_to_port(fd, stuffed_frame, frame_size);
-    printf("Sent INFO frame : %s : %d\n", stuffed_frame, frame_size);
+    // printf("Sent INFO frame : %s : %d\n", stuffed_frame, frame_size);
 	free(stuffed_frame);
 	free(frame);
 }
 
 void sigalarm_set_handler_writer(int sig){
 	if(set_tries < MAX_FRAME_TRIES){
-		printf("Alarm timeout\n");
+		// printf("Alarm timeout\n");
 		set_tries++;
 		retry_flag = 1;
 		// send_frame(fd, SET);
@@ -124,7 +124,7 @@ void sigalarm_set_handler_writer(int sig){
 
 void sigalarm_disc_handler_writer(int sig){
     if (disc_tries < MAX_FRAME_TRIES){
-        printf("Alarm timeout\n");
+        // printf("Alarm timeout\n");
         disc_tries++;
 		retry_flag = 1;
         // send_frame(fd, DISC_SENDER);
@@ -137,7 +137,7 @@ void sigalarm_disc_handler_writer(int sig){
 
 void sigalarm_info_handler_writer(int sig){
     if (info_tries < MAX_FRAME_TRIES){
-        printf("Alarm timeout\n");
+        // printf("Alarm timeout\n");
         info_tries++;
 		retry_flag = 1;
         // send_info_frame(fd, lastSent, last_sent_size, TRUE);
@@ -193,12 +193,12 @@ int send_set(int fd){
 			continue;
 		}
 		if(ua_frame[2] == C_UA){
-			printf("Received UA\n");
+			// printf("Received UA\n");
 			set_tries = 0;
 			alarm(0);
 			return 0;
 		} else {
-			printf("Wasn't UA\n");
+			// printf("Wasn't UA\n");
 		}
 	}
 	alarm_flag = 0;
@@ -221,13 +221,13 @@ int send_disc_sender(int fd){
 			continue;
 		}
 		if(disc_frame[2] == C_DISC){
-			printf("Received DISC\n");
+			// printf("Received DISC\n");
 			disc_tries = 0;
 			alarm(0);
 			send_frame(fd, UA_SENDER);
 			return 0;
 		} else {
-			printf("Wasn't DISC\n");
+			// printf("Wasn't DISC\n");
 		}
 	}
 	alarm_flag = 0;
@@ -257,16 +257,16 @@ int send_info(int fd, char* data, int length){
 			continue;
 		}
 
-		print_frame(response, 5);
+		// print_frame(response, 5);
 
 		if((unsigned char)(response[2]) == C_RR_1 || (unsigned char)(response[2]) == C_RR_2) {
-			printf("RR received\n");
+			// printf("RR received\n");
 			resend = FALSE;
 			alarm(0);
 			free(lastSent);
 			return length;
 		} else if((unsigned char)(response[2]) == C_REJ_1 || (unsigned char)(response[2]) == C_REJ_2) {
-			printf("REJ received\n");
+			// printf("REJ received\n");
 			resend = TRUE;
 		}
 	}

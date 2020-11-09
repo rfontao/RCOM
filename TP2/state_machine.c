@@ -64,7 +64,7 @@ STATE machine(unsigned char input, machine_type type, frame_type frame_type){
             else if(frame_type == COMMAND){
                 if((type == RECEIVER_M && input == (A_SENDER ^ c)) ||
                 (type == SENDER_M && input == (A_RECEIVER ^ c))){
-                    if(rand()%100 >= 2){
+                    if(rand()%100 >= 0){
                         st = BCC_OK;
                     }
                 }

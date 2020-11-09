@@ -89,7 +89,7 @@ int read_frame_reader(int fd, char* data, frame_type frame_type){
 	int j = 5;
 	unsigned char bcc2_check = data[j-1];
 
-	if(rand()%100 < 2){
+	if(rand()%100 < 0){
 		bcc2_check = data[j-1];
 	} else {
 		for(; j < i - 2; ++j) 

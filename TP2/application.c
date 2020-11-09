@@ -1,5 +1,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <fcntl.h>
 #include <termios.h>
 #include <stdio.h>
@@ -60,11 +61,14 @@ int send_control(int type, char *filename, long fileSize) {
 	char packet[256];
 
 	int size = assemble_control_packet(type, filename, fileSize, packet);
+	printf("CONTROL SIZE:%d", size);
 
 	if(size > MAX_PACKET_SIZE) {
 		printf("Control size cannot be larger than maximum packet size\n");
 		return -1;
 	}
+
+	print_frame(packet, size);
 
 	if(llwrite(app.fileDescriptor, packet, size) == -1) {
 		printf("Error sending control packet\n");
@@ -304,8 +308,10 @@ int read_control(char* ctl, char* fileName, int* control_size){
 }
 
 int check_control(char* control, char* buffer, int size){
-	//print_frame(control, size);
-	//print_frame(buffer, size);
+	// printf("Control size: %d", size);
+	// print_frame(control, size);
+	// printf("------------------------------");
+	// print_frame(buffer, size);
 
 
 	for(int i = 1; i < size; i++){
@@ -375,6 +381,9 @@ int main(int argc, char **argv) {
 		exit(-1);
 	}
 
+	struct timeval start_time;
+  	gettimeofday(&start_time, NULL);
+
 	if((app.fileDescriptor = llopen(port_name, app.status)) < 0){
 		printf("Failed to open file\n");
 		exit(-1);
@@ -385,10 +394,10 @@ int main(int argc, char **argv) {
 		char control[MAX_PACKET_SIZE];
 		char buffer[MAX_PACKET_SIZE];
 		int read_size;
-		int control_size;
+		int* control_size = (int*)malloc(sizeof(int));
 
 		// int file_size = read_control(&control, file_name);
-		read_control(control, file_name, &control_size);
+		read_control(control, file_name, control_size);
 
 		char file_buffer[MAX_CHUNK_SIZE];
 		
@@ -409,7 +418,8 @@ int main(int argc, char **argv) {
 
 			if(buffer[0] == C_END){
 				//End buffer is different from start buffer
-				if(check_control(control, buffer, control_size) < 0){
+
+				if(check_control(control, buffer, *control_size) < 0){
 					printf("--End control packet is different from start control packet--\n");
 					fclose(app.file);
 					exit(-1);
@@ -508,6 +518,13 @@ int main(int argc, char **argv) {
 			exit(-1);
 		}
 	}
+
+	struct timeval final_time;
+  	gettimeofday(&final_time, NULL);
+	// double elapsed = (final_time.tv_sec + final_time.tv_usec / 1000000) - (start_time.tv_sec + start_time.tv_usec / 1000000);
+	double elapsed = (final_time.tv_sec - start_time.tv_sec) + (final_time.tv_usec - start_time.tv_usec) / 1e6;
+
+	printf("Elapsed Time: %f\n", elapsed);
 
 	return 0;
 }

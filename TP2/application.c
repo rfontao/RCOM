@@ -62,7 +62,6 @@ int send_control(int type, char *filename, long fileSize) {
 	char packet[256];
 
 	int size = assemble_control_packet(type, filename, fileSize, packet);
-	printf("CONTROL SIZE:%d", size);
 
 	if(size > MAX_PACKET_SIZE) {
 		printf("Control size cannot be larger than maximum packet size\n");

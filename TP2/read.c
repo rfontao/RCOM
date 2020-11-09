@@ -39,7 +39,7 @@ int read_frame_reader(int fd, char* data, frame_type frame_type){
 	int i = 0;
 	unsigned char c;
 
-	printf("Trying to read frame:\n");
+	// printf("Trying to read frame:\n");
 
 	while(STOP == FALSE) {
 
@@ -59,7 +59,7 @@ int read_frame_reader(int fd, char* data, frame_type frame_type){
 				data[i] = ESC;
 			else {
 				send_rej(fd, c);
-				printf("REJ\n");
+				// printf("REJ\n");
 				return -2;
 			}
 			stuffed = 0;
@@ -83,14 +83,18 @@ int read_frame_reader(int fd, char* data, frame_type frame_type){
 		return 5; //size of the SET buffers
 	}
 
-	printf("RECEIVED INFO %s : %d\n", data, i);
+	// printf("RECEIVED INFO %s : %d\n", data, i);
 
 
 	int j = 5;
 	unsigned char bcc2_check = data[j-1];
 
-	for(; j < i - 2; ++j) 
-        bcc2_check ^= data[j];
+	if(rand()%100 < 2){
+		bcc2_check = data[j-1];
+	} else {
+		for(; j < i - 2; ++j) 
+			bcc2_check ^= data[j];
+	}
 
 	if((unsigned char)(data[i - 2]) != bcc2_check) {
 		send_rej(fd, c);
@@ -115,7 +119,7 @@ void read_set(int fd){
 	while(1){
 		read_frame_reader(fd, frame, COMMAND);
 		if(frame[2] == C_SET){
-			printf("Received SET frame\n");
+			// printf("Received SET frame\n");
 			send_frame(fd, UA_RECEIVER);
 			break;
 		}
@@ -129,7 +133,7 @@ void read_disc(int fd){
 	while(1){
 		read_frame_reader(fd, frame, COMMAND);
 		if(frame[2] == C_DISC){
-			printf("Received DISC frame\n");
+			// printf("Received DISC frame\n");
 			break;
 		}
 	}
@@ -152,7 +156,7 @@ void disc_alarm_receiver(){
 	a.sa_flags = 0;
 	sigemptyset(&a.sa_mask);
 	sigaction(SIGALRM, &a, NULL);
-	printf("DISC Alarm handler set\n");
+	// printf("DISC Alarm handler set\n");
 }
 
 int send_disc_receiver(int fd){
@@ -172,12 +176,12 @@ int send_disc_receiver(int fd){
 			continue;
 		}
 		if(ua_frame[2] == C_UA){
-			printf("Received UA\n");
+			// printf("Received UA\n");
 			alarm(0);
 			free(ua_frame);
 			return 0;
 		} else {
-			printf("Wasn't UA\n");
+			// printf("Wasn't UA\n");
 		}
 	}
 	alarm_flag = 0;
@@ -187,7 +191,7 @@ int send_disc_receiver(int fd){
 
 void sigalarm_disc_handler_reader(int sig){
     if (disc_tries < MAX_FRAME_TRIES){
-        printf("Alarm timeout\n");
+        // printf("Alarm timeout\n");
         disc_tries++;
 		retry_flag = 1;
         // send_frame(fd, DISC_RECEIVER);

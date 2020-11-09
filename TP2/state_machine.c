@@ -63,8 +63,11 @@ STATE machine(unsigned char input, machine_type type, frame_type frame_type){
                 st = FLAG_RCV;
             else if(frame_type == COMMAND){
                 if((type == RECEIVER_M && input == (A_SENDER ^ c)) ||
-                (type == SENDER_M && input == (A_RECEIVER ^ c)))
-                    st = BCC_OK;
+                (type == SENDER_M && input == (A_RECEIVER ^ c))){
+                    if(rand()%100 < 2){
+                        st = BCC_OK;
+                    }
+                }
                 else
                     st = START;    
             

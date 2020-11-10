@@ -114,7 +114,6 @@ void sigalarm_set_handler_writer(int sig){
 		printf("Alarm timeout\n");
 		set_tries++;
 		retry_flag = 1;
-		// send_frame(fd, SET);
 		alarm(FRAME_TIMEOUT);
 	} else {
 		perror("SET max tries reached\n");
@@ -127,7 +126,6 @@ void sigalarm_disc_handler_writer(int sig){
         printf("Alarm timeout\n");
         disc_tries++;
 		retry_flag = 1;
-        // send_frame(fd, DISC_SENDER);
         alarm(FRAME_TIMEOUT);
     } else {
         perror("DISC max tries reached\n");
@@ -140,7 +138,6 @@ void sigalarm_info_handler_writer(int sig){
         printf("Alarm timeout\n");
         info_tries++;
 		retry_flag = 1;
-        // send_info_frame(fd, lastSent, last_sent_size, TRUE);
         alarm(FRAME_TIMEOUT);
     } else {
         perror("INFO max tries reached\n");
@@ -256,8 +253,6 @@ int send_info(int fd, char* data, int length){
 		if(retry_flag == 1 || alarm_flag == 1){
 			continue;
 		}
-
-		print_frame(response, 5);
 
 		if((unsigned char)(response[2]) == C_RR_1 || (unsigned char)(response[2]) == C_RR_2) {
 			printf("RR received\n");

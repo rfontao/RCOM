@@ -16,7 +16,6 @@ STATE machine(unsigned char input, machine_type type, frame_type frame_type){
         st = receiver_state;
     else 
         st = sender_state;
-    // printf("STATE: %d\n", st);
 
     static unsigned char c;
 

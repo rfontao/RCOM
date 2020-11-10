@@ -18,7 +18,7 @@ struct termios oldtio, newtio;
 
 int openFile(const char *name, int mode){
 	if(mode == RECEIVER){
-		app.file = fopen(name, "wb"); //HARDCODE
+		app.file = fopen(name, "wb");
 	} else if(mode == SENDER){
 		app.file = fopen(name, "rb");
 	} else {
@@ -113,23 +113,6 @@ int assemble_control_packet(int type, char* filename, long fileSize, char* packe
 	for(; i < strlen(filename); ++i) {
 		packet[k + i] = filename[i];
 	}
-
-
-	//Other way around
-
-	// packet[1] = FILE_NAME;
-	// packet[2] = strlen(ff);
-	// int i = 0;
-	// for(; i < strlen(ff); ++i) {
-	// 	packet[3 + i] = ff[i];
-	// }
-
-	// packet[i + 3] = FILE_SIZE;
-	// packet[i + 4] = sizeof(fileSize);
-	// packet[i + 5] = (fileSize >> 24) & 0xff;
-	// packet[i + 6] = (fileSize >> 16) & 0xff;
-	// packet[i + 7] = (fileSize >> 8) & 0xff;
-	// packet[i + 8] = fileSize & 0xff;
 
 	return k + i;
 }
@@ -304,9 +287,6 @@ int read_control(char* ctl, char* fileName, int* control_size){
 }
 
 int check_control(char* control, char* buffer, int size){
-	//print_frame(control, size);
-	//print_frame(buffer, size);
-
 
 	for(int i = 1; i < size; i++){
 		if(control[i] != buffer[i]){
@@ -387,7 +367,6 @@ int main(int argc, char **argv) {
 		int read_size;
 		int control_size;
 
-		// int file_size = read_control(&control, file_name);
 		read_control(control, file_name, &control_size);
 
 		char file_buffer[MAX_CHUNK_SIZE];
@@ -426,12 +405,10 @@ int main(int argc, char **argv) {
 			}
 
 			int packet_size = (unsigned char)(buffer[2]) * 256 + (unsigned char)(buffer[3]);
-			// printf("PACKET SIZE: %d\n", packet_size);
 
 			for(int i = 4; i < packet_size + 4; i++){
 				file_buffer[i - 4] = buffer[i];
 			}
-			//printf("FILE DATA: %s\n", file_buffer);
 			writeFileBytes(file_buffer, packet_size);
 
 			sequenceN = (sequenceN + 1) % 255;
@@ -484,7 +461,6 @@ int main(int argc, char **argv) {
 
 			char* packet = (char*)malloc(size_to_send + 4);
 			int packet_size = assemble_data_packet(file, size_to_send, sequenceN, packet);
-			// printf("PACKET SIZE %d\n", packet_size);
 
 			if(llwrite(app.fileDescriptor, packet, packet_size) < 0){
 				printf("--Error writing--\n");

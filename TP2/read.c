@@ -104,8 +104,6 @@ int read_frame_reader(int fd, char* data, frame_type frame_type){
 		data[k - 4] = data[k];
 	}
 
-	// print_frame(*data, i);
-
 	return k - 4;
 }
 
@@ -190,7 +188,6 @@ void sigalarm_disc_handler_reader(int sig){
         printf("Alarm timeout\n");
         disc_tries++;
 		retry_flag = 1;
-        // send_frame(fd, DISC_RECEIVER);
         alarm(FRAME_TIMEOUT);
     } else {
         perror("DISC max tries reached\n");

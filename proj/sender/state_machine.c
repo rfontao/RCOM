@@ -47,10 +47,7 @@ STATE machine(unsigned char input, machine_type type, frame_type frame_type){
             break;
 
         case A_RCV:
-            if(type == RECEIVER_M && frame_type == COMMAND && ((unsigned char)input == C_RR_1 || (unsigned char)input == C_RR_2 || 
-                (unsigned char)input == C_REJ_1 || (unsigned char)input == C_REJ_2)) {
-                st = START;
-            } else if(input == FLAG)
+            if(input == FLAG)
                 st = FLAG_RCV;
             else {
                 st = C_RCV;

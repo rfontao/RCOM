@@ -11,9 +11,7 @@ typedef enum {
     REJ
 } frameType;
 
-#define MAX_CHUNK_SIZE 400
-#define MAX_PACKET_SIZE MAX_CHUNK_SIZE + 4
-#define MAX_FRAME_SIZE MAX_PACKET_SIZE + 6
+#define INITIAL_ALLOC_SIZE 200
 
 void write_to_port(int fd, char* data, size_t s);
 void send_frame(int fd, frameType type);

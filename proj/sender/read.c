@@ -32,7 +32,9 @@ static int retry_flag = 0;
 unsigned int timeout;
 unsigned int numTransmissions;
 
-int read_frame_reader(int fd, char* data, frame_type frame_type){
+int read_frame_reader(int fd, char** data, frame_type frame_type){
+	*data = (char*)malloc(sizeof(char) * INITIAL_ALLOC_SIZE);
+	long current_alloc_size = INITIAL_ALLOC_SIZE;
 	char result;
 	STATE st;
 	int stuffed = 0;
@@ -42,6 +44,11 @@ int read_frame_reader(int fd, char* data, frame_type frame_type){
 	printf("Trying to read frame:\n");
 
 	while(STOP == FALSE) {
+
+		if(i == current_alloc_size - 2){
+			*data = (char*)realloc(*data, current_alloc_size * 2);
+			current_alloc_size *= 2;
+		}
 
 		read(fd, &result, 1);
 		if(retry_flag == 1){
@@ -54,9 +61,9 @@ int read_frame_reader(int fd, char* data, frame_type frame_type){
 		}
 		if(stuffed) {
 			if(result == SEQ_1)
-				data[i] = FLAG;
+				(*data)[i] = FLAG;
 			else if(result == SEQ_2)
-				data[i] = ESC;
+				(*data)[i] = ESC;
 			else {
 				send_rej(fd, c);
 				printf("REJ\n");
@@ -64,17 +71,15 @@ int read_frame_reader(int fd, char* data, frame_type frame_type){
 			}
 			stuffed = 0;
 		} else 
-			data[i] = result;
+			(*data)[i] = result;
 		i++;
 
 		st = machine(result, RECEIVER_M, frame_type);
-
+		
 		if(st == STOP_ST || st == STOP_INFO) {
 			STOP = TRUE;
 		} else if(st == C_RCV) {
 			c = result;
-		} else if(st == START) {
-			i = 0;
 		}
 	}
 	STOP = FALSE;
@@ -83,16 +88,16 @@ int read_frame_reader(int fd, char* data, frame_type frame_type){
 		return 5; //size of the SET buffers
 	}
 
-	printf("RECEIVED INFO %s : %d\n", data, i);
+	printf("RECEIVED INFO %s : %d\n", *data, i);
 
 
 	int j = 5;
-	unsigned char bcc2_check = data[j-1];
+	unsigned char bcc2_check = (*data)[j-1];
 
 	for(; j < i - 2; ++j) 
-        bcc2_check ^= data[j];
+        bcc2_check ^= (*data)[j];
 
-	if((unsigned char)(data[i - 2]) != bcc2_check) {
+	if((unsigned char)((*data)[i - 2]) != bcc2_check) {
 		send_rej(fd, c);
 		return -2;
 	} else {
@@ -101,7 +106,7 @@ int read_frame_reader(int fd, char* data, frame_type frame_type){
 
 	int k = 4;
 	for(; k < i - 2; ++k){
-		data[k - 4] = data[k];
+		(*data)[k - 4] = (*data)[k];
 	}
 
 	// print_frame(*data, i);
@@ -110,10 +115,10 @@ int read_frame_reader(int fd, char* data, frame_type frame_type){
 }
 
 void read_set(int fd){
-	char* frame = (char*)malloc(sizeof(char) * MAX_FRAME_SIZE);
+	char* frame;
 
 	while(1){
-		read_frame_reader(fd, frame, COMMAND);
+		read_frame_reader(fd, &frame, COMMAND);
 		if(frame[2] == C_SET){
 			printf("Received SET frame\n");
 			send_frame(fd, UA_RECEIVER);
@@ -124,10 +129,10 @@ void read_set(int fd){
 }
 
 void read_disc(int fd){
-	char* frame = (char*)malloc(sizeof(char) * MAX_FRAME_SIZE);
+	char* frame;
 
 	while(1){
-		read_frame_reader(fd, frame, COMMAND);
+		read_frame_reader(fd, &frame, COMMAND);
 		if(frame[2] == C_DISC){
 			printf("Received DISC frame\n");
 			break;
@@ -136,12 +141,13 @@ void read_disc(int fd){
 	free(frame);
 }
 
-int read_info(int fd, char* buffer){
+int read_info(int fd, char** buffer){
 	int read_size;
 
 	do {
 		if((read_size = read_frame_reader(fd, buffer, COMMAND)) == -1)
 			return -1;
+		printf("LOOP\n");
 	} while(read_size == -2);
 	return read_size;
 }
@@ -162,10 +168,10 @@ int send_disc_receiver(int fd){
 	alarm(FRAME_TIMEOUT);
     send_frame(fd, DISC_RECEIVER);
 
-	char* ua_frame = (char*)malloc(sizeof(char) * MAX_FRAME_SIZE);
+	char* ua_frame;
 
 	while(alarm_flag == 0){
-		read_frame_reader(fd, ua_frame, RESPONSE);
+		read_frame_reader(fd, &ua_frame, RESPONSE);
 		if(retry_flag == 1){
 			send_frame(fd, DISC_RECEIVER);
 			retry_flag = 0;

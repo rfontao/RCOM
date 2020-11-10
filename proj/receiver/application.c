@@ -15,10 +15,11 @@
 applicationLayer app;
 struct termios oldtio, newtio;
 
+#define MAX_CHUNK_SIZE 5000
 
 int openFile(const char *name, int mode){
 	if(mode == RECEIVER){
-		app.file = fopen(name, "wb"); //HARDCODE
+		app.file = fopen(name, "wb");
 	} else if(mode == SENDER){
 		app.file = fopen(name, "rb");
 	} else {
@@ -45,6 +46,9 @@ long readFileInfo(){
 	struct stat buf;
 	int fd = fileno(app.file);
 	fstat(fd, &buf);
+	// fseek(app.file, 0, SEEK_END);
+	// long len = ftell(app.file);
+	// fseek(app.file, 0, SEEK_SET);
 	return buf.st_size;
 }
 
@@ -57,20 +61,14 @@ int writeFileBytes(char* data, long size){
 }
 
 int send_control(int type, char *filename, long fileSize) {
-	char packet[256];
+	char packet[strlen(filename) + 9];
 
 	int size = assemble_control_packet(type, filename, fileSize, packet);
-
-	if(size > MAX_PACKET_SIZE) {
-		printf("Control size cannot be larger than maximum packet size\n");
-		return -1;
-	}
 
 	if(llwrite(app.fileDescriptor, packet, size) == -1) {
 		printf("Error sending control packet\n");
 		return -1;
 	}
-
 	return 0;
 }
 
@@ -100,10 +98,8 @@ int assemble_control_packet(int type, char* filename, long fileSize, char* packe
 	packet[2] = sizeof(fileSize);
 
 	int k = 3;
-	int j = sizeof(fileSize) - 1;
-	for(; k < sizeof(fileSize) + 3; k++) {
-		packet[k] = (fileSize >> (j*8)) & 0xff;
-		j--;
+	for(; k < sizeof(fileSize); k++) {
+		packet[k] = (fileSize >> ((k-3)*8)) & 0xff;
 	}
 
 	packet[k++] = FILE_NAME;
@@ -150,7 +146,7 @@ int llopen(char* port, int mode) {
     return fd;
 }
 
-int llread(int fd, char* buffer){
+int llread(int fd, char** buffer){
 	return read_info(fd, buffer);
 }
 
@@ -233,14 +229,17 @@ int close_port(){
 	return 0;
 }
 
-int read_control(char* ctl, char* fileName, int* control_size){
+int read_control(char** ctl, char* fileName, int* control_size){
 	if((*control_size = llread(app.fileDescriptor, ctl)) < 0){
 		printf("--Error reading--\n");
-		free(ctl);
+		free(*ctl);
 		exit(-1);
 	}
 
-	char* control = ctl;
+	char* control = *ctl;
+
+	printf("CONTROLLL\n");
+	print_frame(control, *control_size);
 
 	if(control[0] != C_START && control[0] != C_END){
 		printf("Invalid control\n");
@@ -252,12 +251,6 @@ int read_control(char* ctl, char* fileName, int* control_size){
 	bzero(size, 4);
 	if(control[1] == FILE_SIZE){
 		int block_size = control[2];
-
-		if(3 + block_size > MAX_PACKET_SIZE) {
-			printf("Control is larger than max size\n");
-			return -1;
-		}
-
 		int j = block_size - 1;
 		for(int i = 0; i < block_size; i++){
 			int part = ((unsigned char)(control[i+3]) << (j * 8));
@@ -266,33 +259,16 @@ int read_control(char* ctl, char* fileName, int* control_size){
 		}
 
 		int name_size = control[block_size + 4];
-		if(block_size + 4 + name_size > MAX_PACKET_SIZE) {
-			printf("Control is larger than max size\n");
-			return -1;
-		}
-
 		for(int i = 0; i < name_size; i++){
 			fileName[i] = control[i + block_size + 5];
 		}
 	} else if(control[1] == FILE_NAME){
 		int name_size = control[2];
-
-		if(3 + name_size > MAX_PACKET_SIZE) {
-			printf("Control is larger than max size\n");
-			return -1;
-		}
-
 		for(int i = 0; i < name_size; i++){
 			fileName[i] = control[i + 3];
 		}
 
 		int block_size = control[name_size + 4];
-
-		if(name_size + 4 + block_size > MAX_PACKET_SIZE) {
-			printf("Control is larger than max size\n");
-			return -1;
-		}
-
 		int j = block_size - 1;
 		for(int i = 0; i < block_size; i++){
 			file_size |= ((unsigned char)(control[name_size + i + 5]) << (j * 8));
@@ -304,9 +280,8 @@ int read_control(char* ctl, char* fileName, int* control_size){
 }
 
 int check_control(char* control, char* buffer, int size){
-	//print_frame(control, size);
-	//print_frame(buffer, size);
-
+	// print_frame(control, size);
+	// print_frame(buffer, size);
 
 	for(int i = 1; i < size; i++){
 		if(control[i] != buffer[i]){
@@ -382,18 +357,19 @@ int main(int argc, char **argv) {
 	
 	if(app.status == RECEIVER){
 
-		char control[MAX_PACKET_SIZE];
-		char buffer[MAX_PACKET_SIZE];
+		char* control;
+		char* buffer;
 		int read_size;
 		int control_size;
 
 		// int file_size = read_control(&control, file_name);
-		read_control(control, file_name, &control_size);
+		read_control(&control, file_name, &control_size);
 
 		char file_buffer[MAX_CHUNK_SIZE];
 		
 		if(openFile(file_name, app.status) < 0){
 			perror("Error opening file\n");
+			free(control);
 			exit(-1);
 		}
 
@@ -401,8 +377,10 @@ int main(int argc, char **argv) {
 		int sequenceN = 0;
 
 		while(control_found == 0){
-			if((read_size = llread(app.fileDescriptor, buffer)) < 0){
+			if((read_size = llread(app.fileDescriptor, &buffer)) < 0){
 				printf("--Error reading--\n");
+				free(control);
+				free(buffer);
 				fclose(app.file);
 				exit(-1);
 			}
@@ -410,17 +388,22 @@ int main(int argc, char **argv) {
 			if(buffer[0] == C_END){
 				//End buffer is different from start buffer
 				if(check_control(control, buffer, control_size) < 0){
-					printf("--End control packet is different from start control packet--\n");
+					printf("--End buffer is different from start buffer--\n");
+					free(control);
+					free(buffer);
 					fclose(app.file);
 					exit(-1);
 				}
 				control_found = 0;
+				free(buffer);
 				break;
 			}
 			
 			//Check for sequence number
 			if((unsigned char)(buffer[1]) != sequenceN){
 				printf("--Received packet with wrong sequence number. Aborting--\n");
+				free(control);
+				free(buffer);
 				fclose(app.file);
 				exit(-1);
 			}
@@ -431,12 +414,14 @@ int main(int argc, char **argv) {
 			for(int i = 4; i < packet_size + 4; i++){
 				file_buffer[i - 4] = buffer[i];
 			}
+			free(buffer);
 			//printf("FILE DATA: %s\n", file_buffer);
 			writeFileBytes(file_buffer, packet_size);
 
 			sequenceN = (sequenceN + 1) % 255;
 		}
 
+		free(control);
 		fclose(app.file);
 
 		if(llclose(app.fileDescriptor) < 0){
@@ -454,11 +439,7 @@ int main(int argc, char **argv) {
 		long file_size = readFileInfo();
 		char file[MAX_CHUNK_SIZE];
 
-		if(send_control(START_C, file_name, file_size) < 0) {
-			printf("Error sending control packet\n");
-			fclose(app.file);
-			exit(-1);
-		}
+		send_control(START_C, file_name, file_size);
 
 		int size_remaining = file_size;
 		int size_to_send;

@@ -96,6 +96,8 @@ int read_frame_reader(int fd, char* data, frame_type frame_type){
 			bcc2_check ^= data[j];
 	}
 
+	usleep(1000);
+
 	if((unsigned char)(data[i - 2]) != bcc2_check) {
 		send_rej(fd, c);
 		return -2;

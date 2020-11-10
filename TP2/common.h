@@ -11,7 +11,7 @@ typedef enum {
     REJ
 } frameType;
 
-#define MAX_CHUNK_SIZE 1000
+#define MAX_CHUNK_SIZE 100
 #define MAX_PACKET_SIZE MAX_CHUNK_SIZE + 4
 #define MAX_FRAME_SIZE MAX_PACKET_SIZE + 6
 

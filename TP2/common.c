@@ -7,7 +7,7 @@
 
 void write_to_port(int fd, char* data, size_t s){
 	int sent = write(fd, data, s);
-	printf("%d bytes written\n", sent);
+	//printf("%d bytes written\n", sent);
 }
 
 void print_frame(char* frame, size_t s){
@@ -28,8 +28,8 @@ void send_frame(int fd, frameType type){
         set_frame[4] = FLAG;
 
         write_to_port(fd, set_frame, 5);
-        printf("Sent SET frame : ");
-        print_frame(set_frame, 5);
+        printf("Sent SET frame");
+        //print_frame(set_frame, 5);
     }
 
     if(type == UA_RECEIVER){
@@ -41,8 +41,8 @@ void send_frame(int fd, frameType type){
         ua_frame[4] = FLAG;
 
 	    write_to_port(fd, ua_frame, 5);
-        printf("Sent UA frame : ");
-        print_frame(ua_frame, 5);
+        printf("Sent UA frame");
+        //print_frame(ua_frame, 5);
     }
 
     if (type == UA_SENDER){
@@ -54,8 +54,8 @@ void send_frame(int fd, frameType type){
         ua_frame[4] = FLAG;
 
         write_to_port(fd, ua_frame, 5);
-        printf("Sent UA frame : ");
-        print_frame(ua_frame, 5);
+        printf("Sent UA frame");
+        //print_frame(ua_frame, 5);
     }
 
     if(type == DISC_RECEIVER){
@@ -67,8 +67,8 @@ void send_frame(int fd, frameType type){
         disc_frame[4] = FLAG;
 
         write_to_port(fd, disc_frame, 5);
-        printf("Sent DISC frame : ");
-        print_frame(disc_frame, 5);
+        printf("Sent DISC frame");
+        //print_frame(disc_frame, 5);
     }
 
     if (type == DISC_SENDER){
@@ -80,8 +80,8 @@ void send_frame(int fd, frameType type){
         disc_frame[4] = FLAG;
 
         write_to_port(fd, disc_frame, 5);
-        printf("Sent DISC frame : ");
-        print_frame(disc_frame, 5);
+        printf("Sent DISC frame");
+        //print_frame(disc_frame, 5);
     }
 }
 
@@ -129,8 +129,8 @@ void send_rr(int fd, char c) {
     rr[3] = A_SENDER ^ rr[2];
     rr[4] = FLAG;
 
-    printf("Sent RR: ");
-    print_frame(rr, 5);
+    printf("Sent RR");
+    //print_frame(rr, 5);
 
     write_to_port(fd, rr, 5);
 }
@@ -148,8 +148,8 @@ void send_rej(int fd, char c) {
     rej[3] = A_SENDER ^ rej[2];
     rej[4] = FLAG;
 
-    printf("Sent REJ: ");
-    print_frame(rej, 5);
+    printf("Sent REJ");
+    //print_frame(rej, 5);
 
     write_to_port(fd, rej, 5);
 }

@@ -83,7 +83,7 @@ int read_frame_reader(int fd, char* data, frame_type frame_type){
 		return 5; //size of the SET buffers
 	}
 
-	printf("RECEIVED INFO %s : %d\n", data, i);
+	printf("RECEIVED INFO : %d\n", i);
 
 
 	int j = 5;

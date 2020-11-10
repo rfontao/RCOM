@@ -104,7 +104,7 @@ void send_info_frame(int fd, char* data, size_t size, int resend) {
 	last_sent_size = frame_size;
 
     write_to_port(fd, stuffed_frame, frame_size);
-    printf("Sent INFO frame : %s : %d\n", stuffed_frame, frame_size);
+    printf("Sent INFO frame : %d\n", frame_size);
 	free(stuffed_frame);
 	free(frame);
 }

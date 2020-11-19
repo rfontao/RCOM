@@ -84,6 +84,8 @@ int parse_input(connection *conn, char *input) {
 
     char* token;
     token = strtok_r(aux, s_login, &auxptr);
+    if(strlen(token) == 0) 
+            return -1;
     if(strcmp(token, input) == 0){
         printf("No user specified\n");
         conn->anonymous = 1;
@@ -94,6 +96,8 @@ int parse_input(connection *conn, char *input) {
 
     char* inputptr;
     token = strtok_r(input, s, &inputptr);
+    if(token == NULL) 
+            return -1;
     if(strcmp(token, "ftp:") != 0){
         perror("Not ftp protocol\n");
         return -1;
@@ -102,39 +106,84 @@ int parse_input(connection *conn, char *input) {
     if(conn->anonymous){
         //Host name
         token = strtok_r(NULL, s, &inputptr);
+        if(token == NULL) 
+            return -1;
         conn->host_name = (char*)malloc((sizeof(char) * strlen(token)) + 1);
         strcpy(conn->host_name, token);
 
         token = strtok_r(NULL, s_url, &inputptr);
+        if(token == NULL) 
+            return -1;
+        
         conn->url = (char*)malloc((sizeof(char) * strlen(token)) + 1);
         strcpy(conn->url, token);
 
     } else {
         token = strtok_r(NULL, s, &inputptr);
+        if(token == NULL) 
+            return -1;
+    
+        char* aux1 = (char*)malloc((sizeof(char) * strlen(token)) + 1);
+        strcpy(aux1, token);
 
         char* infoptr;
         char* info = strtok_r(token, s_login, &infoptr);
 
+        if(info == NULL) {
+            free(aux1);
+            return -1;
+        }
+
+        // printf("%s\n", info);
+        // printf("%s\n", token);
+        if(strcmp(info, aux1) == 0){
+            free(aux1);
+            return -1;
+        }
+        free(aux1);
+
+
+        char* aux2 = (char*)malloc((sizeof(char) * strlen(info)) + 1);
+        strcpy(aux2, info);
+
         char* loginptr;
         char* loginInfo = strtok_r(info, ":", &loginptr);
+
+        if(loginInfo == NULL) {
+            free(aux2);
+            return -1;
+        }
+
+        if(strcmp(loginInfo, aux2) == 0){
+            free(aux2);
+            return -1;
+        }
+        free(aux2);
+
         conn->username = (char*)malloc((sizeof(char) * strlen(loginInfo)) + 1);
         strcpy(conn->username, loginInfo);
         
+        if(loginInfo == NULL){
+            printf("Hello\n");
+        }
         loginInfo = strtok_r(NULL, "", &loginptr);
+        if(loginInfo == NULL)
+            return -1;
         conn->password = (char*)malloc((sizeof(char) * strlen(loginInfo)) + 1);
         strcpy(conn->password, loginInfo);
         
         token = strtok_r(NULL, s, &infoptr);
+        if(token == NULL) 
+            return -1;
         conn->host_name = (char*)malloc((sizeof(char) * strlen(token)) + 1);
         strcpy(conn->host_name, token);
 
         token = strtok_r(NULL, s_url, &inputptr);
+        if(token == NULL) 
+            return -1;
         conn->url = (char*)malloc((sizeof(char) * strlen(token)) + 1);
         strcpy(conn->url, token);
-
-
     }
-    
     
     return 0;
 }
@@ -151,9 +200,9 @@ int main(int argc, char **argv){
     
     if(parse_input(&conn, argv[1]) < 0){
         perror("Error parsing input\n");
+        cleanup(&conn);
         exit(-1);
     }
-
 
     if(get_ip(&conn) < 0){
         perror("Failed to get host ip\n");

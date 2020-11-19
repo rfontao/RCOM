@@ -78,22 +78,7 @@ int parse_input(connection *conn, char *input) {
     const char s[2] = "/";
     const char s_url[2] = "";
 
-    char* auxptr;
-    char* aux = (char*)malloc((sizeof(char) * strlen(input)) + 1);
-    strcpy(aux, input);
-
     char* token;
-    token = strtok_r(aux, s_login, &auxptr);
-    if(strlen(token) == 0) 
-            return -1;
-    if(strcmp(token, input) == 0){
-        printf("No user specified\n");
-        conn->anonymous = 1;
-    } else 
-        conn->anonymous = 0;
-
-    free(aux);
-
     char* inputptr;
     token = strtok_r(input, s, &inputptr);
     if(token == NULL) 
@@ -103,26 +88,22 @@ int parse_input(connection *conn, char *input) {
         return -1;
     }
 
-    if(conn->anonymous){
-        //Host name
-        token = strtok_r(NULL, s, &inputptr);
-        if(token == NULL) 
-            return -1;
-        conn->host_name = (char*)malloc((sizeof(char) * strlen(token)) + 1);
-        strcpy(conn->host_name, token);
+    token = strtok_r(NULL, s, &inputptr);
+    if(token == NULL) 
+        return -1;
 
-        token = strtok_r(NULL, s_url, &inputptr);
-        if(token == NULL) 
-            return -1;
-        
-        conn->url = (char*)malloc((sizeof(char) * strlen(token)) + 1);
-        strcpy(conn->url, token);
+    char* auxptr;
+    char* aux = (char*)malloc((sizeof(char) * strlen(token)) + 1);
+    strcpy(aux, token);
+    char* aux1 = strtok_r(aux, s_login, &auxptr);
+    if(strcmp(token, aux1) == 0){
+        conn->anonymous = 1;
+    } else 
+        conn->anonymous = 0;
 
-    } else {
-        token = strtok_r(NULL, s, &inputptr);
-        if(token == NULL) 
-            return -1;
-    
+    free(aux);
+
+    if(conn->anonymous == 0) {
         char* aux1 = (char*)malloc((sizeof(char) * strlen(token)) + 1);
         strcpy(aux1, token);
 
@@ -142,13 +123,11 @@ int parse_input(connection *conn, char *input) {
         }
         free(aux1);
 
-
         char* aux2 = (char*)malloc((sizeof(char) * strlen(info)) + 1);
         strcpy(aux2, info);
 
         char* loginptr;
         char* loginInfo = strtok_r(info, ":", &loginptr);
-
         if(loginInfo == NULL) {
             free(aux2);
             return -1;
@@ -163,9 +142,6 @@ int parse_input(connection *conn, char *input) {
         conn->username = (char*)malloc((sizeof(char) * strlen(loginInfo)) + 1);
         strcpy(conn->username, loginInfo);
         
-        if(loginInfo == NULL){
-            printf("Hello\n");
-        }
         loginInfo = strtok_r(NULL, "", &loginptr);
         if(loginInfo == NULL)
             return -1;
@@ -175,15 +151,17 @@ int parse_input(connection *conn, char *input) {
         token = strtok_r(NULL, s, &infoptr);
         if(token == NULL) 
             return -1;
-        conn->host_name = (char*)malloc((sizeof(char) * strlen(token)) + 1);
-        strcpy(conn->host_name, token);
-
-        token = strtok_r(NULL, s_url, &inputptr);
-        if(token == NULL) 
-            return -1;
-        conn->url = (char*)malloc((sizeof(char) * strlen(token)) + 1);
-        strcpy(conn->url, token);
     }
+
+    //Not anonymous and end of anonymous
+    conn->host_name = (char*)malloc((sizeof(char) * strlen(token)) + 1);
+    strcpy(conn->host_name, token);
+
+    token = strtok_r(NULL, s_url, &inputptr);
+    if(token == NULL) 
+        return -1;
+    conn->url = (char*)malloc((sizeof(char) * strlen(token)) + 1);
+    strcpy(conn->url, token);
     
     return 0;
 }
@@ -191,7 +169,7 @@ int parse_input(connection *conn, char *input) {
 int main(int argc, char **argv){
 
     if (argc != 2) {
-        perror("usage: download ftp://[<user>:<password>@]<host>/<url-path>\n");
+        fprintf(stderr, "usage: download ftp://[<user>:<password>@]<host>/<url-path>\n");
         exit(-1);
     }
 
@@ -199,13 +177,16 @@ int main(int argc, char **argv){
     init_connection(&conn);
     
     if(parse_input(&conn, argv[1]) < 0){
-        perror("Error parsing input\n");
+        fprintf(stderr, "Error parsing input\n");
+        fprintf(stderr, "usage: download ftp://[<user>:<password>@]<host>/<url-path>\n");
         cleanup(&conn);
         exit(-1);
     }
 
+    print_connection(&conn);
+
     if(get_ip(&conn) < 0){
-        perror("Failed to get host ip\n");
+        fprintf(stderr, "Failed to get host ip\n");
         cleanup(&conn);
         exit(-1);
     }

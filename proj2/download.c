@@ -270,45 +270,50 @@ int read_message(connection *conn, char* message){
 
 int read_data(connection *conn){
 
-    
+    //Used to get the name of the file without its path
+    char* urlptr;
+    char* token = strtok_r(conn->url, "/", &urlptr);
+    char* result;
+
+    do {
+        result = token;
+        token = strtok_r(NULL, "/", &urlptr);
+    } while(token != NULL);
+
+
 	FILE* fd;
-    if((fd = fopen(conn->url, "w")) < 0){
-        fprintf(stderr, "Error printing file\n");
+    if((fd = fopen(result, "w")) == NULL){
+        fprintf(stderr, "Error opening file\n");
         return -1;
     }
 
     int i = 0;
-    int c;
+    char c;
     int read_bytes = -1;
     char* message = (char*)malloc(sizeof(char) * 200);
     int cur_size = 200;
-    while(read_bytes != 0) {
+    while(1) {
         read_bytes = recv(conn->datafd, &c, 1, 0);
-        if(read_bytes < 0){
+        if(read_bytes < 0)
             return -1;
-        }
+        if(read_bytes == 0)
+            break;
         if(i == cur_size){
             message = (char*)realloc(message, cur_size * 2);
             cur_size *= 2;
         }
         message[i] = c;
         i += read_bytes;
-        printf("%d\n", cur_size);
-        printf("%d\n", i);
-        // printf("Received %ld bytes: %s\n", strlen(message), message);
-        // printf("Char: %c\n", message[3]);
-        // printf("%s", message);
-    } 
+    }
 
-    printf("Hello");
-
-    if(fwrite(message, 1, i - 1, fd) < 0){
+    if(fwrite(message, 1, i, fd) < 0){
 		perror("Error writing to file\n");
 		return -1;
 	}
 
     free(message);
     fclose(fd);
+    printf("Finished reading file\n");
     return 0;  
 
 }

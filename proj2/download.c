@@ -49,7 +49,7 @@ void cleanup(connection *conn){
     if(conn->sockfd != -1)
         close(conn->sockfd);
     if(conn->datafd != -1)
-        close(conn->sockfd);
+        close(conn->datafd);
 }
 
 void print_connection(connection* conn){
@@ -253,6 +253,8 @@ int send_message(connection *conn, char* message){
 }
 
 int read_message(connection *conn, char* message){
+
+    //TODO REFACTOR GETS STUCK ON FIRST MESSAGE SOMETIMES
     int read_bytes = -1;
     do {
         read_bytes = recv(conn->sockfd, message, 4096, 0);
@@ -379,6 +381,12 @@ int main(int argc, char **argv){
     //Read password prompt
     if(read_message(&conn, message) < 0 && message[0] != '3'){
         fprintf(stderr, "Error reading\n");
+        cleanup(&conn);
+        exit(-1);
+    }
+
+    if(message[0] == '5'){
+        fprintf(stderr, "Error: server is anonymous only\n");
         cleanup(&conn);
         exit(-1);
     }

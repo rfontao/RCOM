@@ -77,7 +77,7 @@ int get_ip(connection *conn){
         return -1;
     }
 
-    conn->host_ip = (char*)malloc(sizeof(char) * h->h_length);
+    conn->host_ip = (char*)malloc(16);
 
     //Maybe improve later
     strcpy(conn->host_ip, inet_ntoa(*((struct in_addr *)h->h_addr)));

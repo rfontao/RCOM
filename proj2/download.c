@@ -276,13 +276,12 @@ int read_data(connection *conn){
     char* urlptr;
     char* token = strtok_r(conn->url, "/", &urlptr);
     char* result;
-
+	
     do {
         result = token;
         token = strtok_r(NULL, "/", &urlptr);
     } while(token != NULL);
-
-
+	
 	FILE* fd;
     if((fd = fopen(result, "w")) == NULL){
         fprintf(stderr, "Error opening file\n");
@@ -307,7 +306,6 @@ int read_data(connection *conn){
         message[i] = c;
         i += read_bytes;
     }
-
     if(fwrite(message, 1, i, fd) < 0){
 		perror("Error writing to file\n");
 		return -1;
@@ -336,8 +334,6 @@ int main(int argc, char **argv){
         cleanup(&conn);
         exit(-1);
     }
-
-    print_connection(&conn);
 
     if(get_ip(&conn) < 0){
         fprintf(stderr, "Failed to get host ip\n");
@@ -441,11 +437,23 @@ int main(int argc, char **argv){
 
     //Enter passive
     char retrieve_msg[256];
+    char retr_response[256];
     strcpy(retrieve_msg, "retr ");
     strcat(retrieve_msg, conn.url);
     strcat(retrieve_msg, "\n");
     if(send_message(&conn, retrieve_msg) < 0){
         fprintf(stderr, "Failed sending pasv command\n");
+        cleanup(&conn);
+        exit(-1);
+    }
+
+    if(read_message(&conn, retr_response) > 0) {
+        if(retr_response[0] == '5') {
+            cleanup(&conn);
+            exit(-1);
+        }
+    } else {
+        fprintf(stderr, "No response for retr command\n");
         cleanup(&conn);
         exit(-1);
     }
